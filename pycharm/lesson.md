@@ -187,6 +187,10 @@ stops producing new frames and the stream in your browser will freeze —
 that's expected, not a bug. Click **Resume Program** to get it flowing
 again.
 
+The breakpoint debugger isn't always the right tool, especially once
+motors are involved - see the [debugging lesson](../debugging/lesson.md)
+for when to reach for this versus plain `print()` statements instead.
+
 ## Exercises
 
 1. Configure the SSH remote interpreter pointing at your Pi.

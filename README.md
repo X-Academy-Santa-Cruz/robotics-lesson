@@ -29,6 +29,7 @@ new to Linux or version control.
 | Linux Shell Basics | [`shell/`](shell/lesson.md) |
 | Git Basics | [`git/`](git/lesson.md) |
 | PyCharm for Remote ROV Development | [`pycharm/`](pycharm/lesson.md) |
+| Debugging: print() vs PyCharm's Debugger | [`debugging/`](debugging/lesson.md) |
 
 ## ROV Lessons
 
