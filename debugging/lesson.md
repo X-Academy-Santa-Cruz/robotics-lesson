@@ -25,6 +25,7 @@ technique on any laptop before ever touching a bug on real hardware.
 Run it:
 
 ```bash
+cd robotics-lesson/debugging
 python3 buggy_differential_drive.py
 ```
 
@@ -161,8 +162,9 @@ often on the same bug, often within the same five minutes.
 2. Find the bug using **only** `print()` statements: add one, re-run,
    narrow it down, confirm exactly which line is wrong — then remove your
    temporary prints.
-3. Using `git checkout -- debugging/buggy_differential_drive.py` to put
-   the bug back (or just re-introduce it by hand), now find the same bug
+3. From inside `robotics-lesson/debugging`, use
+   `git checkout -- buggy_differential_drive.py` to put the bug back (or
+   just re-introduce it by hand), now find the same bug
    using **only** PyCharm's debugger — a breakpoint, the Variables panel,
    stepping — without adding any `print()` calls.
 4. Fix the bug for real and confirm all three test cases now produce the

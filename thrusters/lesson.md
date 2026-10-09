@@ -230,6 +230,8 @@ With the thrusters wired, propellers removed or safely submerged, and the
 safety steps from the top of this lesson followed:
 
 ```bash
+cd robotics-lesson/thrusters
+source venv/bin/activate
 python3 thruster_control.py
 ```
 
