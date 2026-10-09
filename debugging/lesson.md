@@ -130,8 +130,8 @@ see the [thrusters lesson](../thrusters/lesson.md) safety section.
 
 ### Timing-sensitive and multi-threaded bugs ("Heisenbugs")
 
-The camera lesson's `_capture_loop` runs continuously in a background
-thread. A breakpoint only pauses the thread it's in - the others keep
+The [camera lesson](../camera/lesson.md)'s `_capture_loop` runs continuously
+in a background thread. A breakpoint only pauses the thread it's in - the others keep
 going - which means hitting a breakpoint can shift the relative timing
 between threads enough to make a race condition disappear exactly while
 you're looking for it (or create one that wasn't there before). A bug that
