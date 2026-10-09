@@ -26,9 +26,19 @@ Pi**, not on your laptop. PyCharm Professional can do this directly:
 4. PyCharm will ask where to sync files on the Pi — this creates a
    **deployment mapping**: your local `robotics-lesson` folder on your
    laptop is mirrored to a folder on the Pi.
-5. Point the interpreter at the Pi's virtual environment
-   (`camera/venv/bin/python3`, the one you created in the camera lesson) —
-   or let PyCharm create a fresh one and install `requirements.txt` for you.
+5. Point the interpreter at a virtual environment on the Pi. Since later
+   lessons (`thrusters/`, `control/`) need different packages than the
+   camera lesson, the simplest approach is **one shared venv with
+   everything installed**, rather than a separate one per lesson:
+   ```bash
+   cd robotics-lesson
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r camera/requirements.txt -r thrusters/requirements.txt
+   ```
+   Point PyCharm at that `robotics-lesson/venv/bin/python3` - every Pi-side
+   script in this course can then run under the same interpreter, with no
+   `ModuleNotFoundError` surprises when you switch between them.
 
 Once this is set up, PyCharm's autocomplete and error-checking reflect what's
 actually installed *on the Pi*, and you're ready to run code there.
@@ -60,7 +70,49 @@ meaningful checkpoints.
 You no longer need a separate SSH terminal window open to run the script —
 PyCharm is doing that for you.
 
-## 4. Git integration
+## 4. Running multiple scripts at once (multiple Run configurations)
+
+The [networked control lesson](../control/lesson.md) needs **two** scripts
+running on the Pi at the same time: the camera stream and the control
+listener. Clicking Run on `camera/stream_server.py` creates a **Run
+configuration** for it automatically (visible in the dropdown at the top
+of the window, next to the Run/Debug buttons). Clicking Run on
+`control/rov_server.py` creates a second, separate one. Each configuration
+remembers its own script, its own interpreter, and its own command-line
+arguments.
+
+To run both at once:
+
+1. Run `camera/stream_server.py` as usual. Its output appears in a tab in
+   the **Run** tool window at the bottom, and it keeps running.
+2. Without stopping it, select `rov_server.py` from the configuration
+   dropdown and click Run again. It opens in a **second tab** in the same
+   Run tool window - both scripts are now running on the Pi simultaneously,
+   each with its own console output and its own red ■ stop button.
+
+You can switch between tabs to watch either one's output, and stop either
+independently without affecting the other. This is the PyCharm equivalent
+of opening two separate SSH terminals - just without needing two terminals.
+
+### Naming and organizing configurations
+
+By default, configurations are named after the script. With several
+scripts in play, rename them to something clearer: **Run \> Edit
+Configurations...**, select one, and change its **Name** field (e.g. "Pi:
+camera stream", "Pi: rov control"). This also shows you every setting a
+configuration holds - script path, working directory, interpreter, and any
+command-line arguments (useful for `rov_server.py --port 5005` or
+`pilot.py`'s required `pi_address` argument) - all set once instead of
+retyped every run.
+
+### A note on `pilot.py`
+
+`pilot.py` runs on your **laptop**, reading your laptop's game controller -
+not on the Pi. Give it its own Run configuration using your laptop's local
+Python interpreter (not the SSH remote one), the same way you'd run any
+ordinary local script.
+
+## 5. Git integration
 
 Everything from the [git lesson](../git/lesson.md) is available through the
 UI instead of typing commands. The commands still work in PyCharm's
@@ -79,7 +131,7 @@ If you ever get a merge conflict, PyCharm opens a three-panel merge tool
 (your version / the incoming version / the result) instead of making you
 hand-edit conflict markers in a text editor.
 
-## 5. Debugging
+## 6. Debugging
 
 This is the biggest upgrade over `print()` statements. Since your remote
 interpreter runs the code on the Pi, debugging in PyCharm means **pausing
@@ -143,3 +195,7 @@ again.
 5. Set a conditional breakpoint on `ok, frame = self.capture.read()` with
    the condition `not ok`, and explain (in a comment or to your instructor)
    what situation would actually trigger it.
+6. Create Run configurations for both `camera/stream_server.py` and
+   `control/rov_server.py`, rename them something clear, and start both at
+   once. Confirm you can see two separate tabs in the Run tool window and
+   stop one without affecting the other.
