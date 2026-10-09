@@ -4,7 +4,7 @@ Your ROV moves using three brushless thrusters (BlueRobotics-style, e.g.
 T100/T200): one on the **left**, one on the **right**, and one **vertical**
 thruster for rising and sinking. This lesson covers how the Pi commands
 them, and introduces a piece of hardware you haven't used yet: the
-**PCA9685 PWM driver board**.
+**SparkFun Pi Servo Hat**, which plugs directly onto the Pi's 40-pin header.
 
 ## Safety first - read this before touching any hardware
 
@@ -48,7 +48,7 @@ Anything in between is a proportional speed. This is called a **PWM**
 signal (Pulse Width Modulation) - the information is encoded entirely in
 how wide each pulse is, not in voltage level.
 
-## 2. Why we need the PCA9685 at all
+## 2. Why we need the Servo Hat at all
 
 You might expect the Pi to generate these pulses directly from its own GPIO
 pins. The problem: Linux isn't a real-time operating system, and Python
@@ -57,30 +57,40 @@ pulse could come out late or the wrong width, and an ESC seeing a corrupted
 signal can behave unpredictably. The Pi also only has one or two pins
 capable of precise hardware PWM, and we need three.
 
-The **PCA9685** is a small, inexpensive chip whose entire job is generating
-up to 16 independent, rock-steady PWM signals, continuously, in hardware -
-once you tell it what each channel's pulse width should be, it keeps
-generating it correctly without the Pi's involvement. The Pi talks to it
-over **I2C**, a simple two-wire protocol (`SDA` for data, `SCL` for a shared
-clock) used for exactly this kind of "configure a chip and let it run"
-job.
+The SparkFun Pi Servo Hat is built around a **PCA9685** chip, whose entire
+job is generating up to 16 independent, rock-steady PWM signals,
+continuously, in hardware - once you tell it what each channel's pulse
+width should be, it keeps generating it correctly without the Pi's
+involvement. Because it's a HAT ("Hardware Attached on Top"), it plugs
+straight onto the Pi's 40-pin GPIO header - no loose wires for power or
+I2C to get wrong. The Pi talks to the PCA9685 chip over **I2C**, a simple
+two-wire protocol (`SDA` for data, `SCL` for a shared clock) that the HAT
+connector carries for you automatically.
 
 So the signal path is:
 
 ```
-Pi (Python) --I2C--> PCA9685 --one PWM wire per channel--> ESC --> thruster
+Pi (Python) --I2C, over the GPIO header--> PCA9685 chip on the Hat
+    --one PWM wire per channel--> ESC --> thruster
 ```
 
-Each ESC's signal wire plugs into one PCA9685 channel. In this lesson:
+Each of the Hat's 16 channels breaks out to a standard 3-pin hobby-servo
+header: **signal, power, ground**. In this lesson:
 
-| Thruster | PCA9685 channel |
+| Thruster | Hat channel |
 |---|---|
 | Left | 0 |
 | Right | 1 |
 | Vertical | 2 |
 
-(The ESC's separate power and ground wires connect to the battery, not the
-PCA9685 - the PCA9685 only carries the signal.)
+Plug each ESC's signal and ground wires into the matching channel's signal
+and ground pins. **Leave the channel's power pin disconnected** unless
+your specific ESC's documentation says otherwise - the ESC's motor power
+comes from the main battery directly, not from the Hat, and some ESCs
+output their own voltage on that pin (via a BEC) which you don't want
+feeding backward into the Hat and the Pi. If you're not sure what your
+ESC's three wires expect, check with your instructor before connecting
+power.
 
 ## 3. Enabling I2C on the Pi
 
@@ -111,15 +121,15 @@ sudo usermod -aG i2c $USER
 sudo reboot
 ```
 
-After rebooting, with the PCA9685 wired to the Pi's I2C pins, confirm the Pi
-can see it:
+After rebooting, with the Servo Hat seated on the Pi's GPIO header, confirm
+the Pi can see it:
 
 ```bash
 i2cdetect -y 1
 ```
 
-You should see `40` appear in the grid - that's the PCA9685 at its default
-address, `0x40`.
+You should see `40` appear in the grid - that's the PCA9685 chip on the
+Hat, at its default address, `0x40`.
 
 ## 4. Install the Python libraries
 
@@ -132,7 +142,9 @@ pip install -r requirements.txt
 
 These are Adafruit's **CircuitPython** libraries - the same libraries work
 across many different boards, with `adafruit-blinka` as the layer that
-makes them work on a Raspberry Pi specifically.
+makes them work on a Raspberry Pi specifically. They don't care that the
+chip happens to be on a SparkFun-branded board rather than an Adafruit one -
+a PCA9685 is a PCA9685 no matter who sells the breakout board.
 
 ## 5. Reading the code: `thruster_control.py`
 
@@ -239,8 +251,8 @@ stop at the end. If a thruster spins the wrong direction, see below.
 
 | Problem | Likely cause |
 |---|---|
-| `i2cdetect` doesn't show `40` | Check PCA9685 wiring to the Pi's SDA/SCL/power/ground pins |
-| `ValueError: No I2C device at address 0x40` | Same as above, or a different address - pass `--address` if you've changed the PCA9685's address jumpers |
+| `i2cdetect` doesn't show `40` | Confirm the Servo Hat is fully and firmly seated on the Pi's 40-pin GPIO header, with all pins aligned |
+| `ValueError: No I2C device at address 0x40` | Same as above, or a different address - pass `--address` if you've changed the Hat's address jumpers |
 | A thruster spins backwards from what you expect | Swap that ESC's two motor-to-thruster wires (not the signal wire), or negate that channel's throttle in code |
 | Nothing moves, no errors | ESC isn't armed/powered, or the battery isn't connected - check battery connections with everyone's hands clear first |
 | One thruster is much weaker/stronger than you expect at the same throttle | Thrusters and ESCs can have slightly different calibration; this is normal and something you'll tune for later, not a bug |

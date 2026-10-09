@@ -11,7 +11,8 @@ any example code that goes with it.
 - Raspberry Pi running **Ubuntu** (not Raspberry Pi OS)
 - USB webcam plugged into the Pi
 - Three BlueRobotics-style brushless thrusters (left, right, vertical), each
-  with its own ESC, wired to a **PCA9685** PWM driver board over I2C
+  with its own ESC, wired to a **SparkFun Pi Servo Hat** (PCA9685-based)
+  plugged onto the Pi's GPIO header
 - A topside laptop on the same network as the Pi (connected via tether/switch
   or Wi-Fi), used to view the camera stream and, in later lessons, send
   control commands
