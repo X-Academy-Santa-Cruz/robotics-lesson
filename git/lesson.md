@@ -99,7 +99,7 @@ For this course, your instructor will tell you whether to work directly on
   `git checkout -- <file>` — **this discards the changes permanently**, so
   check `git diff` first
 
-## Exercise
+## Exercises
 
 1. Clone this repository (if you haven't already).
 2. Create a new file in a scratch folder, e.g. `practice/hello.txt`, with

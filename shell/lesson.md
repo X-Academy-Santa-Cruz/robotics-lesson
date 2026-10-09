@@ -122,7 +122,7 @@ hostname -I
 
 Write it down — you'll need it in the next lesson.
 
-## Exercise
+## Exercises
 
 1. SSH into the Pi.
 2. Use `pwd` and `ls` to confirm you can find the `robotics-lesson` folder.
