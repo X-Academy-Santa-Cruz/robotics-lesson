@@ -29,7 +29,7 @@ who changed what. With git:
 ## 3. Getting a copy of this repo
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/X-Academy-Santa-Cruz/robotics-lesson.git
 cd robotics-lesson
 ```
 
