@@ -26,19 +26,10 @@ Pi**, not on your laptop. PyCharm Professional can do this directly:
 4. PyCharm will ask where to sync files on the Pi — this creates a
    **deployment mapping**: your local `robotics-lesson` folder on your
    laptop is mirrored to a folder on the Pi.
-5. Point the interpreter at a virtual environment on the Pi. Since later
-   lessons (`thrusters/`, `control/`) need different packages than the
-   camera lesson, the simplest approach is **one shared venv with
-   everything installed**, rather than a separate one per lesson:
-   ```bash
-   cd robotics-lesson
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r camera/requirements.txt -r thrusters/requirements.txt
-   ```
-   Point PyCharm at that `robotics-lesson/venv/bin/python3` - every Pi-side
-   script in this course can then run under the same interpreter, with no
-   `ModuleNotFoundError` surprises when you switch between them.
+5. Point the interpreter at the virtual environment you already created
+   for that lesson on the Pi - `camera/venv/bin/python3` for the camera
+   lesson, for example - or let PyCharm create a fresh one and install
+   that folder's `requirements.txt` for you.
 
 Once this is set up, PyCharm's autocomplete and error-checking reflect what's
 actually installed *on the Pi*, and you're ready to run code there.
@@ -80,6 +71,20 @@ of the window, next to the Run/Debug buttons). Clicking Run on
 `control/rov_server.py` creates a second, separate one. Each configuration
 remembers its own script, its own interpreter, and its own command-line
 arguments.
+
+### Different scripts, different interpreters
+
+`stream_server.py` needs the packages installed in `camera/venv`;
+`rov_server.py` imports `ThrusterRig`, which needs the packages installed
+in `thrusters/venv` instead (see the [control lesson](../control/lesson.md)
+for why it reuses that venv rather than its own). Repeat the SSH
+interpreter setup from step 5 above to add a **second** remote interpreter
+pointing at `thrusters/venv/bin/python3`, then open **Run \> Edit
+Configurations...** and set each script's configuration to use the
+matching interpreter. Running the wrong one gives you a familiar error -
+`ModuleNotFoundError` - which is PyCharm telling you the selected
+interpreter doesn't have that package installed, the same as it would from
+a terminal.
 
 To run both at once:
 

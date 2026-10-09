@@ -1,6 +1,7 @@
 """
 Drives three BlueRobotics-style brushless thrusters (left, right, vertical)
-through a PCA9685 PWM driver board connected to the Pi over I2C.
+through a SparkFun Pi Servo Hat (PCA9685-based) plugged onto the Pi's GPIO
+header.
 
 Run this with the thrusters either out of the water with propellers removed,
 or fully submerged and clear of anyone's hands - never run them in air with
