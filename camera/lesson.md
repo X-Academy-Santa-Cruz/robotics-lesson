@@ -134,6 +134,68 @@ server.
 | Page loads but never shows an image | Check the Pi's firewall isn't blocking port 8000; confirm you used the Pi's IP, not `localhost`, from your laptop |
 | Laptop can't reach the Pi's IP at all | Confirm both devices are on the same network; re-check `hostname -I` on the Pi |
 
+## Measuring real-world latency with a phone
+
+**Latency** is the delay between something happening in front of the camera
+and you actually seeing it on your laptop screen — capture, JPEG encoding,
+network transfer, and browser decoding all take a small amount of time. For
+piloting an ROV, high latency is the difference between "I see a wall and
+stop in time" and "I see a wall after I've already hit it," so it's worth
+measuring, not just assuming it's small.
+
+You can't measure this with a regular stopwatch, because by the time you
+read the stopwatch and compare it to the screen, you've introduced your own
+reaction-time error. The trick is to capture *both* the real time and the
+delayed time **in a single photo**, using a second phone.
+
+### What you need
+
+- The ROV's USB camera, running `stream_server.py`, viewed in a browser on
+  your laptop
+- A phone showing a **millisecond stopwatch** (many free stopwatch apps show
+  `MM:SS.mmm`; a web search for "online millisecond stopwatch" also works in
+  a mobile browser)
+- A second phone (or anyone's phone camera) to take the measurement photo
+
+### Steps
+
+1. Start the millisecond stopwatch on the first phone and let it run
+   continuously.
+2. Point the USB camera directly at that phone's screen, close enough that
+   the numbers are sharp and readable in the stream.
+3. On your laptop, open the stream (`http://<pi-ip-address>:8000/`) so it's
+   clearly visible — you're now looking at a video of a stopwatch, running
+   slightly behind the real one.
+4. Using the **second phone**, take a single photo that frames **both**
+   screens at once: the original stopwatch phone, and the laptop screen
+   showing the stream. Both timestamps need to be sharp enough to read in
+   the photo.
+5. Zoom into the photo and read both timestamps. The real stopwatch will
+   read a later (bigger) time than the one visible in the stream on the
+   laptop — that difference **is** your end-to-end latency, in
+   milliseconds.
+
+### Why this works
+
+Both numbers exist at the exact same instant: the instant the measurement
+photo's shutter opens. One of them traveled straight to your eye at the
+speed of light (basically instant); the other traveled through the entire
+camera → Pi → network → browser pipeline you just built, which takes
+measurably longer. The photo freezes both of them side by side so you can
+read the gap directly, instead of trying to perceive it in real time.
+
+### Things to try
+
+- Take several photos and average the readings — a single measurement can
+  be off by a frame or two.
+- Repeat at your original resolution and again at the smaller `320x240`
+  resolution from the exercises below. Lower resolution means less data to
+  encode and send per frame, so you should measure *lower* latency — this
+  is the same tradeoff you noticed in smoothness, now with a number
+  attached to it.
+- Try it on a slow/congested Wi-Fi network vs. a direct wired connection to
+  see the network's contribution to the delay.
+
 ## Exercises
 
 1. Run the server and view the stream from your laptop's browser.
@@ -146,3 +208,5 @@ server.
    name) and see what happens with two tabs open.
 4. Add a `--fps` command-line option that controls the `time.sleep(1 / 30)`
    value instead of hard-coding 30.
+5. Measure the stream's end-to-end latency using the phone-photo method
+   above, at two different resolutions, and record both numbers.
