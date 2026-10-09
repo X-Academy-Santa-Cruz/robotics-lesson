@@ -27,8 +27,8 @@ Pi**, not on your laptop. PyCharm Professional can do this directly:
    **deployment mapping**: your local `robotics-lesson` folder on your
    laptop is mirrored to a folder on the Pi.
 5. Point the interpreter at the virtual environment you already created
-   for that lesson on the Pi - `camera/venv/bin/python3` for the camera
-   lesson, for example - or let PyCharm create a fresh one and install
+   for that lesson on the Pi — `camera/venv/bin/python3` for the camera
+   lesson, for example — or let PyCharm create a fresh one and install
    that folder's `requirements.txt` for you.
 
 Once this is set up, PyCharm's autocomplete and error-checking reflect what's
@@ -81,8 +81,8 @@ for why it reuses that venv rather than its own). Repeat the SSH
 interpreter setup from step 5 above to add a **second** remote interpreter
 pointing at `thrusters/venv/bin/python3`, then open **Run \> Edit
 Configurations...** and set each script's configuration to use the
-matching interpreter. Running the wrong one gives you a familiar error -
-`ModuleNotFoundError` - which is PyCharm telling you the selected
+matching interpreter. Running the wrong one gives you a familiar error —
+`ModuleNotFoundError` — which is PyCharm telling you the selected
 interpreter doesn't have that package installed, the same as it would from
 a terminal.
 
@@ -92,12 +92,12 @@ To run both at once:
    the **Run** tool window at the bottom, and it keeps running.
 2. Without stopping it, select `rov_server.py` from the configuration
    dropdown and click Run again. It opens in a **second tab** in the same
-   Run tool window - both scripts are now running on the Pi simultaneously,
+   Run tool window — both scripts are now running on the Pi simultaneously,
    each with its own console output and its own red ■ stop button.
 
 You can switch between tabs to watch either one's output, and stop either
 independently without affecting the other. This is the PyCharm equivalent
-of opening two separate SSH terminals - just without needing two terminals.
+of opening two separate SSH terminals — just without needing two terminals.
 
 ### Naming and organizing configurations
 
@@ -105,14 +105,14 @@ By default, configurations are named after the script. With several
 scripts in play, rename them to something clearer: **Run \> Edit
 Configurations...**, select one, and change its **Name** field (e.g. "Pi:
 camera stream", "Pi: rov control"). This also shows you every setting a
-configuration holds - script path, working directory, interpreter, and any
+configuration holds — script path, working directory, interpreter, and any
 command-line arguments (useful for `rov_server.py --port 5005` or
-`pilot.py`'s required `pi_address` argument) - all set once instead of
+`pilot.py`'s required `pi_address` argument) — all set once instead of
 retyped every run.
 
 ### A note on `pilot.py`
 
-`pilot.py` runs on your **laptop**, reading your laptop's game controller -
+`pilot.py` runs on your **laptop**, reading your laptop's game controller —
 not on the Pi. Give it its own Run configuration using your laptop's local
 Python interpreter (not the SSH remote one), the same way you'd run any
 ordinary local script.
@@ -138,7 +138,7 @@ hand-edit conflict markers in a text editor.
 
 ## 6. Debugging
 
-This gives you a powerful alternative to `print()` statements - though not
+This gives you a powerful alternative to `print()` statements — though not
 a replacement for them; see the [debugging lesson](../debugging/lesson.md)
 for when each one fits better. Since your remote interpreter runs the code
 on the Pi, debugging in PyCharm means **pausing code while it's actually
