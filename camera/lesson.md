@@ -84,8 +84,41 @@ not from a screen on the vehicle itself.
 
 ## Install the libraries
 
-Do this once, inside the `camera` folder (a virtual environment keeps these
-packages separate from the rest of your system):
+You need three things: **pip3** (Python's package installer), and the Python
+modules the programs use (OpenCV, Flask, click). On the Raspberry Pi (and any
+Ubuntu machine) the simplest way is with `apt-get`.
+
+### 1. Install pip3
+
+```bash
+sudo apt-get update
+sudo apt-get install python3-pip
+```
+
+### 2. Install the Python modules with apt-get (recommended on the Pi)
+
+Installing the modules through `apt-get` gets versions already built for the
+Pi, which is faster and avoids compile errors:
+
+```bash
+sudo apt-get install python3-opencv python3-flask python3-click
+```
+
+That's everything the two programs need:
+
+| Module | apt package | Used by |
+|---|---|---|
+| OpenCV | `python3-opencv` | both programs (reads the camera, makes JPEGs) |
+| Flask | `python3-flask` | `camera_simple.py` (the web server) |
+| click | `python3-click` | `stream_server.py` (command-line options) |
+
+Once these are installed you can skip straight to running the programs.
+
+### Alternative: pip and a virtual environment
+
+If you'd rather keep this lesson's packages separate from the rest of your
+system (or you're not on Ubuntu), use a virtual environment and `pip`
+instead. Do this once, inside the `camera` folder:
 
 ```bash
 python3 -m venv venv
@@ -93,8 +126,9 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-That installs OpenCV (reads the camera), Flask (the web server for the
-simple version), and click (command-line options for the advanced version).
+That installs the same three modules from `requirements.txt`. With a
+virtual environment you run the programs with `venv` activated (your prompt
+shows `(venv)`); run `deactivate` when you're done.
 
 ## Start here: the simple version (`camera_simple.py`)
 
