@@ -1,1 +1,9 @@
-opencv-python-headless
+# Python packages for the camera lesson.
+#   pip install -r requirements.txt
+#
+# opencv-python-headless is the version without GUI windows -- right for a
+# headless Raspberry Pi. On a machine where you also want cv2.imshow()
+# windows, use opencv-python instead.
+opencv-python-headless    # reads the camera and makes JPEGs (both scripts)
+flask                     # tiny web server used by camera_simple.py
+click                     # command-line options used by stream_server.py

@@ -1,16 +1,21 @@
 """
 Streams video from a USB camera over HTTP as MJPEG.
 
+This is the advanced version. It reads the camera on a background thread and
+serves several viewers at once. For a shorter, beginner-friendly version that
+does the same basic job, see camera_simple.py.
+
 Run it on the Raspberry Pi, then open http://<pi-ip-address>:8000/ in a
-browser on your laptop to watch the live feed.
+browser on your laptop to watch the live feed. Command-line options are
+handled by click -- run  python3 stream_server.py --help  to see them all.
 """
 
-import argparse
 import socket
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import click
 import cv2
 
 BOUNDARY = "frame"
@@ -128,26 +133,32 @@ def local_ip() -> str:
         s.close()
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--camera", type=int, default=0, help="camera index (/dev/videoN)")
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--width", type=int, default=640)
-    parser.add_argument("--height", type=int, default=480)
-    args = parser.parse_args()
+# click turns these decorators into real command-line options, with a
+# --help message generated for free. Example:
+#   python3 stream_server.py --camera 1 --width 320 --height 240
+@click.command()
+@click.option("--camera", default=0, show_default=True,
+              help="Camera index (/dev/videoN); 0 is the first USB camera.")
+@click.option("--port", default=8000, show_default=True,
+              help="Port to serve the stream on.")
+@click.option("--width", default=640, show_default=True,
+              help="Frame width in pixels.")
+@click.option("--height", default=480, show_default=True,
+              help="Frame height in pixels.")
+def main(camera, port, width, height):
+    """Start the camera and serve its MJPEG stream over HTTP."""
+    cam = Camera(camera, width, height)
+    StreamingHandler.camera = cam
 
-    camera = Camera(args.camera, args.width, args.height)
-    StreamingHandler.camera = camera
-
-    server = ThreadingHTTPServer(("0.0.0.0", args.port), StreamingHandler)
-    print(f"Streaming at http://{local_ip()}:{args.port}/  (Ctrl+C to stop)")
+    server = ThreadingHTTPServer(("0.0.0.0", port), StreamingHandler)
+    print(f"Streaming at http://{local_ip()}:{port}/  (Ctrl+C to stop)")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
         server.shutdown()
-        camera.close()
+        cam.close()
 
 
 if __name__ == "__main__":

@@ -18,6 +18,40 @@ When you're done, opening `http://<pi-ip-address>:8000/` in a browser on
 your laptop will show the live camera feed, updating continuously, with the
 Pi doing all the work and your laptop just displaying the result.
 
+There are **two programs** in this folder that do the same basic job:
+
+| File | For | What it is |
+|---|---|---|
+| [`camera_simple.py`](camera_simple.py) | Learning | The beginner version. Short, uses Flask, a comment on almost every line. Start here. |
+| [`stream_server.py`](stream_server.py) | The real ROV | The advanced version. Reads the camera on a background thread, serves several viewers at once, and takes command-line options (via `click`). |
+
+## Getting the code: clone the repository
+
+All the lessons live in one Git repository. Clone it once onto whatever
+machine you're working on (your laptop, and/or the Pi). You need Git
+installed first — see the [Git lesson](../git/lesson.md) if `git` isn't set
+up yet.
+
+```bash
+# Clone over HTTPS (works for everyone)
+git clone https://github.com/X-Academy-Santa-Cruz/robotics-lesson.git
+
+# Go into the camera lesson
+cd robotics-lesson/camera
+```
+
+> **Already cloned it before?** Don't clone again — just update your copy:
+> ```bash
+> cd robotics-lesson
+> git pull
+> ```
+
+If your team uses SSH keys with GitHub, you can clone with SSH instead:
+
+```bash
+git clone git@github.com:X-Academy-Santa-Cruz/robotics-lesson.git
+```
+
 ## Why stream over the network instead of showing it on the Pi?
 
 The Pi is going to be sealed inside the ROV with no monitor attached. The
@@ -48,10 +82,48 @@ not from a screen on the vehicle itself.
    `<img>` tag just keeps redrawing the image as new ones arrive — which
    looks exactly like video.
 
-## Reading the code: `stream_server.py`
+## Install the libraries
 
-Open [`stream_server.py`](stream_server.py) in PyCharm. Here's what each
-piece does.
+Do this once, inside the `camera` folder (a virtual environment keeps these
+packages separate from the rest of your system):
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+That installs OpenCV (reads the camera), Flask (the web server for the
+simple version), and click (command-line options for the advanced version).
+
+## Start here: the simple version (`camera_simple.py`)
+
+Open [`camera_simple.py`](camera_simple.py) in PyCharm and read it top to
+bottom — almost every line is commented. In short:
+
+- `make_frames()` grabs a frame from the camera, compresses it to a JPEG,
+  and `yield`s it with the `--frame` boundary marker.
+- The `/` route serves a tiny HTML page whose `<img>` points at `/video`.
+- The `/video` route returns the never-ending stream of JPEGs, under the
+  header `multipart/x-mixed-replace; boundary=frame`, which tells the
+  browser "keep replacing the image with each new one I send."
+
+Run it on the Pi:
+
+```bash
+python3 camera_simple.py
+```
+
+Now open `http://<pi-ip-address>:8000/` in a browser **on your laptop**
+(not the Pi). You should see the live camera feed. Press `Ctrl+C` in the
+terminal to stop the server. Find the Pi's address with `hostname -I` on
+the Pi.
+
+## The advanced version (`stream_server.py`)
+
+Once the simple version makes sense, open
+[`stream_server.py`](stream_server.py). It does the same job but adds the
+things you'd want on a real competition ROV.
 
 ### `Camera` — grabbing frames in the background
 
@@ -66,27 +138,20 @@ thread** continuously reads frames and stores only the most recent one.
 When a browser asks for a frame, it instantly gets whatever's already
 there — no waiting on the camera.
 
-A `threading.Lock` guards the shared `_latest_jpeg` variable so the
-capture thread and the web server thread never read/write it at the exact
-same instant and corrupt it.
+A `threading.Lock` guards the shared `_latest_jpeg` variable so the capture
+thread and the web server thread never read/write it at the exact same
+instant and corrupt it.
 
 ### `StreamingHandler` — the web server side
 
 This is built on Python's standard `http.server`. Two URLs are handled:
 
-- `/` returns a tiny HTML page containing `<img src="/stream.mjpg">` — this
-  is the page your browser actually opens.
-- `/stream.mjpg` is the actual video stream. Look at `_serve_stream`:
-
-```python
-self.send_header("Content-Type", f"multipart/x-mixed-replace; boundary={BOUNDARY}")
-```
-
-This HTTP header is what tells the browser "I'm not sending you one image,
-I'm sending you a never-ending sequence of images — keep displaying each
-new one as it arrives." Then the loop just keeps writing
-`boundary + headers + one JPEG` over and over, forever, until the browser
-disconnects.
+- `/` returns a tiny HTML page containing `<img src="/stream.mjpg">` — the
+  page your browser actually opens.
+- `/stream.mjpg` is the actual video stream. The key line is the
+  `multipart/x-mixed-replace` header, same idea as the simple version, then
+  it writes `boundary + headers + one JPEG` over and over until the browser
+  disconnects.
 
 ### `ThreadingHTTPServer`
 
@@ -96,40 +161,27 @@ even just reloading the page) would hang forever waiting for the first
 connection to finish. `ThreadingHTTPServer` spins up a new thread per
 connection so multiple people can view the stream at once.
 
-### `main()`
+### `main()` and command-line options with `click`
 
-Parses command-line options (camera index, port, resolution), starts the
-camera, starts the server, and on `Ctrl+C` shuts both down cleanly so the
-camera device is released properly.
-
-## Running it
-
-On the Pi (see the [shell lesson](../shell/lesson.md) if any of this is
-unfamiliar):
+The `@click.command()` and `@click.option(...)` decorators on `main()` turn
+camera index, port, and frame size into command-line options — so you can
+change them without editing the file — and give you a `--help` message for
+free:
 
 ```bash
-cd robotics-lesson/camera
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python3 stream_server.py
+python3 stream_server.py                      # defaults: camera 0, port 8000, 640x480
+python3 stream_server.py --width 320 --height 240   # smaller + lower latency
+python3 stream_server.py --camera 1           # use the second camera
+python3 stream_server.py --help               # list every option
 ```
 
-You should see:
+On `Ctrl+C` it shuts the server down and releases the camera cleanly.
 
-```
-Streaming at http://<pi-ip-address>:8000/  (Ctrl+C to stop)
-```
-
-Now open that address in a browser **on your laptop** (not the Pi). You
-should see the live camera feed. Press `Ctrl+C` in the terminal to stop the
-server.
-
-### If it doesn't work
+## If it doesn't work
 
 | Problem | Likely cause |
 |---|---|
-| `Could not open camera 0` | Camera isn't plugged in, or it's `/dev/video1` instead — try `--camera 1` |
+| `Could not open camera 0` | Camera isn't plugged in, or it's `/dev/video1` instead — try `--camera 1` (advanced) or `cv2.VideoCapture(1)` (simple) |
 | `Permission denied` opening the camera | Your user isn't in the `video` group — see the shell lesson, section 5 |
 | Page loads but never shows an image | Check the Pi's firewall isn't blocking port 8000; confirm you used the Pi's IP, not `localhost`, from your laptop |
 | Laptop can't reach the Pi's IP at all | Confirm both devices are on the same network; re-check `hostname -I` on the Pi |
@@ -150,7 +202,7 @@ delayed time **in a single photo**, using a second phone.
 
 ### What you need
 
-- The ROV's USB camera, running `stream_server.py`, viewed in a browser on
+- The ROV's USB camera, running one of the programs, viewed in a browser on
   your laptop
 - A phone showing a **millisecond stopwatch** (many free stopwatch apps show
   `MM:SS.mmm`; a web search for "online millisecond stopwatch" also works in
@@ -189,24 +241,24 @@ read the gap directly, instead of trying to perceive it in real time.
 - Take several photos and average the readings — a single measurement can
   be off by a frame or two.
 - Repeat at your original resolution and again at the smaller `320x240`
-  resolution from the exercises below. Lower resolution means less data to
-  encode and send per frame, so you should measure *lower* latency — this
-  is the same tradeoff you noticed in smoothness, now with a number
-  attached to it.
+  resolution (`--width 320 --height 240`). Lower resolution means less data
+  to encode and send per frame, so you should measure *lower* latency — the
+  same tradeoff you noticed in smoothness, now with a number attached to it.
 - Try it on a slow/congested Wi-Fi network vs. a direct wired connection to
   see the network's contribution to the delay.
 
 ## Exercises
 
-1. Run the server and view the stream from your laptop's browser.
-2. Change `--width`/`--height` to a smaller resolution (e.g. `320x240`) and
-   notice how much smoother the stream looks on a slow network — this is
-   the same bandwidth-vs-quality tradeoff real ROV pilots deal with.
+1. Run **both** programs and view the stream from your laptop's browser.
+   Notice they look the same in the browser even though the code is quite
+   different.
+2. Shrink the resolution with `--width 320 --height 240` (advanced version)
+   and notice how much smoother the stream looks on a slow network — the
+   same bandwidth-vs-quality tradeoff real ROV pilots deal with.
 3. Open the stream in two browser tabs at once and confirm both update —
-   this only works because of `ThreadingHTTPServer`. Try temporarily
-   swapping it for a plain `HTTPServer` (same import line, different class
-   name) and see what happens with two tabs open.
-4. Add a `--fps` command-line option that controls the `time.sleep(1 / 30)`
-   value instead of hard-coding 30.
+   this works with `stream_server.py` because of `ThreadingHTTPServer`. Try
+   it with `camera_simple.py` and see the difference.
+4. Add a `--fps` command-line option to `stream_server.py` that controls the
+   `time.sleep(1 / 30)` value instead of hard-coding 30.
 5. Measure the stream's end-to-end latency using the phone-photo method
    above, at two different resolutions, and record both numbers.
