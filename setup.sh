@@ -268,6 +268,96 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
+# Pin PyCharm and Google Chrome to the dock / taskbar
+# ---------------------------------------------------------------------------
+#
+# "The dock" means different things depending on the desktop:
+#   * GNOME (Ubuntu Desktop)      -> the favorites bar (gsettings favorite-apps)
+#   * Raspberry Pi OS (wf-panel / LXDE-pi) -> the taskbar launchers
+# Favorites are a per-user setting, so this runs as $TARGET_USER, not root.
+
+pin_to_dock() {
+    local chrome_desktop="google-chrome.desktop"
+    local pycharm_desktop="pycharm.desktop"
+
+    # Only pin apps that actually installed.
+    local -a wanted=()
+    [[ -f "/usr/share/applications/$pycharm_desktop" ]] && wanted+=("$pycharm_desktop")
+    if [[ -f "/usr/share/applications/$chrome_desktop" ]]; then
+        wanted+=("$chrome_desktop")
+    elif [[ -f "/usr/share/applications/google-chrome-stable.desktop" ]]; then
+        chrome_desktop="google-chrome-stable.desktop"
+        wanted+=("$chrome_desktop")
+    fi
+    if (( ${#wanted[@]} == 0 )); then
+        info "Neither app is installed yet; nothing to pin."
+        return 0
+    fi
+
+    local ran=0
+
+    # --- GNOME (Ubuntu) ------------------------------------------------------
+    if sudo -u "$TARGET_USER" bash -lc 'command -v gsettings >/dev/null' \
+       && sudo -u "$TARGET_USER" bash -lc 'gsettings get org.gnome.shell favorite-apps >/dev/null 2>&1'; then
+        info "GNOME detected; adding to the favorites dock ..."
+        # DBus session address for the logged-in user, so gsettings writes to
+        # the right session.
+        local uid bus
+        uid="$(id -u "$TARGET_USER")"
+        bus="unix:path=/run/user/${uid}/bus"
+        for app in "${wanted[@]}"; do
+            sudo -u "$TARGET_USER" \
+                DBUS_SESSION_BUS_ADDRESS="$bus" \
+                python3 - "$app" <<'PYIN'
+import subprocess, sys, ast
+app = sys.argv[1]
+cur = subprocess.check_output(
+    ["gsettings", "get", "org.gnome.shell", "favorite-apps"], text=True).strip()
+try:
+    favs = ast.literal_eval(cur)
+except Exception:
+    favs = []
+if app not in favs:
+    favs.append(app)
+    subprocess.run(
+        ["gsettings", "set", "org.gnome.shell", "favorite-apps", str(favs)],
+        check=True)
+    print("    pinned", app)
+else:
+    print("   ", app, "already pinned")
+PYIN
+        done
+        ran=1
+    fi
+
+    # --- Raspberry Pi OS (wf-panel-pi, the Wayland/labwc default) -------------
+    local wf="/home/${TARGET_USER}/.config/wf-panel-pi.ini"
+    if [[ -f "$wf" ]] || sudo -u "$TARGET_USER" bash -lc 'command -v wf-panel-pi >/dev/null 2>&1'; then
+        info "Raspberry Pi (wf-panel) detected; adding taskbar launchers ..."
+        sudo -u "$TARGET_USER" mkdir -p "$(dirname "$wf")"
+        for app in "${wanted[@]}"; do
+            # wf-panel pins launchers as launcher_000N=<desktop file>
+            if ! grep -q "=$app\$" "$wf" 2>/dev/null; then
+                # find the next free launcher index
+                local n=0
+                while grep -q "^launcher_$(printf '%06d' "$n")=" "$wf" 2>/dev/null; do
+                    n=$((n+1))
+                done
+                printf 'launcher_%06d=%s\n' "$n" "$app" | sudo -u "$TARGET_USER" tee -a "$wf" >/dev/null
+                info "    added $app to the taskbar"
+            else
+                info "    $app already on the taskbar"
+            fi
+        done
+        ran=1
+    fi
+
+    if (( ran == 0 )); then
+        warn "No supported desktop (GNOME or wf-panel) found. Pin PyCharm and Chrome by hand: open each, then right-click its dock icon and choose 'Pin to taskbar' / 'Add to Favorites'."
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 
@@ -321,7 +411,8 @@ print_summary() {
     fi
 
     echo
-    info "All done. A reboot is recommended (also applies the I2C changes):"
+    info "All done. A reboot is recommended (also applies the I2C changes and"
+    info "shows the pinned PyCharm and Chrome icons on the dock/taskbar):"
     info "    sudo reboot"
     info "If you were just added to the 'i2c' group, log out and back in too."
     info "Then run a camera program from the camera folder, for example:"
@@ -347,5 +438,6 @@ run_step "Installing the SparkFun Pi Servo HAT library"   install_servo_hat
 run_step "Enabling the I2C bus"                           enable_i2c
 run_step "Installing Google Chrome"                       install_chrome
 run_step "Installing PyCharm"                             install_pycharm
+run_step "Pinning PyCharm and Chrome to the dock"         pin_to_dock
 
 print_summary
