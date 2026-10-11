@@ -24,6 +24,7 @@ There are **two programs** in this folder that do the same basic job:
 |---|---|---|
 | [`camera_simple.py`](camera_simple.py) | Learning | The beginner version. Short, uses Flask, a comment on almost every line. Start here. |
 | [`stream_server.py`](stream_server.py) | The real ROV | The advanced version. Reads the camera on a background thread, serves several viewers at once, and takes command-line options (via `click`). |
+| [`install.sh`](install.sh) | Setup | One command to update packages and install everything the two programs need. |
 
 ## Getting the code: clone the repository
 
@@ -87,6 +88,20 @@ not from a screen on the vehicle itself.
 You need three things: **pip3** (Python's package installer), and the Python
 modules the programs use (OpenCV, Flask, click). On the Raspberry Pi (and any
 Ubuntu machine) the simplest way is with `apt-get`.
+
+### Easiest: run the install script
+
+This folder includes [`install.sh`](install.sh), which updates the package
+lists and installs pip3 plus all the camera packages in one step. From the
+`camera` folder, run:
+
+```bash
+bash install.sh
+```
+
+It will ask for your password (because it uses `sudo`). When it finishes,
+skip ahead to [running the simple version](#start-here-the-simple-version-camera_simplepy).
+If you'd rather run the steps yourself, do them by hand below.
 
 ### 1. Install pip3
 
