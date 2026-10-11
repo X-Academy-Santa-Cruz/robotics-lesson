@@ -35,6 +35,39 @@ cd robotics-lesson
 
 This downloads the full history, not just the latest files.
 
+### Run the setup script
+
+Once you have cloned the repo onto the Raspberry Pi (Ubuntu), run the
+setup script one time from the top of the repo. It gets the Pi ready for
+every lesson in one step:
+
+```bash
+bash setup.sh
+```
+
+It will ask for your password (it uses `sudo`). It updates the package
+lists, then installs:
+
+- **pip3** (`python3-pip`) and a few build basics
+- the **camera** packages (`python3-opencv`, `python3-flask`, `python3-click`)
+- the **joystick** package (`python3-pygame`)
+- the **I2C** tools (`i2c-tools`, `python3-smbus`)
+- the **SparkFun Pi Servo HAT** library (`pi-servo-hat`) for the thrusters
+
+It also enables the **I2C** bus and adds you to the `i2c` group so the Servo
+HAT works. When it finishes:
+
+1. Reboot if it tells you to (I2C was just turned on), and log out and back
+   in if it added you to the `i2c` group.
+2. Confirm the Servo HAT is on the bus — it should show up at address `40`:
+
+   ```bash
+   i2cdetect -y 1
+   ```
+
+Re-running `setup.sh` later is safe. Each lesson folder also has narrower
+install notes if you ever want to set up just one lesson.
+
 ## 4. The everyday workflow
 
 ```bash

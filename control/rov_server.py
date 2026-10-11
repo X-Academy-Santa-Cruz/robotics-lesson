@@ -30,7 +30,7 @@ def main():
     parser.add_argument("--port", type=int, default=5005)
     parser.add_argument(
         "--address", type=lambda s: int(s, 0), default=0x40,
-        help="PCA9685 I2C address (default 0x40)",
+        help="Pi Servo HAT I2C address (default 0x40)",
     )
     args = parser.parse_args()
 

@@ -144,76 +144,88 @@ i2cdetect -y 1
 You should see `40` appear in the grid — that's the PCA9685 chip on the
 Hat, at its default address, `0x40`.
 
-## 4. Install the Python libraries
+## 4. Install the Python library
+
+The thruster code uses the SparkFun **pi-servo-hat** library, which drives
+the PCA9685 chip on the Servo HAT. The top-level `setup.sh` already installs
+it, so if you ran that you can skip ahead. To install just this library by
+hand:
 
 ```bash
-cd robotics-lesson/thrusters
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+pip3 install pi-servo-hat
 ```
 
-These are Adafruit's **CircuitPython** libraries — the same libraries work
-across many different boards, with `adafruit-blinka` as the layer that
-makes them work on a Raspberry Pi specifically. They don't care that the
-chip happens to be on a SparkFun-branded board rather than an Adafruit one —
-a PCA9685 is a PCA9685 no matter who sells the breakout board.
+(On newer Ubuntu/Debian, pip outside a virtual environment needs
+`pip3 install --break-system-packages pi-servo-hat`, or make a venv first.)
+
+This one library is all the thruster code needs — it talks to the Servo HAT
+over I2C and does the pulse-width math for us.
 
 ## 5. Reading the code: `thruster_control.py`
 
-### Talking to the PCA9685
+### Talking to the Servo HAT
 
 ```python
-i2c = busio.I2C(board.SCL, board.SDA)
-self._pca = PCA9685(i2c, address=i2c_address)
-self._pca.frequency = frequency
+self._hat = pi_servo_hat.PiServoHat(address=i2c_address)
+self._hat.restart()                    # reset the chip; sets 50 Hz
+self._hat.set_pulse_time(MIN_PULSE_MS, MAX_PULSE_MS)
 ```
 
-This opens the I2C connection and sets the PWM frequency to 50 Hz — the
+`PiServoHat` opens the I2C connection to the HAT (default address `0x40`).
+`restart()` resets the chip and sets the PWM frequency to 50 Hz — the
 standard rate ESCs expect (one pulse every 20 milliseconds).
+`set_pulse_time()` tells the library the min and max pulse widths our ESCs
+use, 1.1 ms and 1.9 ms, so the position commands below land on the right
+pulses.
 
-### `ContinuousServo` — why we're using something named "servo"
+### From throttle to position
 
 ```python
-servo.ContinuousServo(
-    self._pca.channels[channel],
-    min_pulse=MIN_PULSE_US,
-    max_pulse=MAX_PULSE_US,
-)
+def _throttle_to_position(throttle):
+    throttle = max(-1.0, min(1.0, throttle))
+    return (throttle + 1.0) * (SWING / 2.0)   # SWING = 180
 ```
 
-A continuous-rotation hobby servo is controlled by the exact same
-1100-1900 µs pulse convention as our ESCs, so this library class does
-precisely the pulse-width math we need: set `.throttle` to anything from
-`-1.0` to `1.0` and it computes the right pulse width automatically. We're
-not actually using a servo motor — we're reusing a library built for one
-because the signal format is identical.
+The library commands a servo by **position in degrees**, from 0 up to the
+servo's swing (we use `SWING = 180`). With the pulse range set above, the
+library maps position 0 to the minimum pulse, the midpoint to neutral, and
+the maximum position to the maximum pulse. So we convert a throttle of
+`-1.0 … +1.0` into a position of `0 … 180`:
+
+- throttle `-1.0` → position `0` → 1.1 ms → full reverse
+- throttle `0.0` → position `90` → 1.5 ms → stop (neutral)
+- throttle `+1.0` → position `180` → 1.9 ms → full forward
+
+`move_servo_position(channel, position, SWING)` then sends it to the HAT.
+We're not driving an actual servo motor — a continuous-rotation ESC uses the
+exact same pulse convention, so the Servo HAT library does precisely the
+pulse-width math we need.
 
 ### Arming
 
 ```python
 def arm(self):
-    self._left.throttle = 0.0
-    self._right.throttle = 0.0
-    self._vertical.throttle = 0.0
+    self._set_throttle(CHANNEL_LEFT, 0.0)
+    self._set_throttle(CHANNEL_RIGHT, 0.0)
+    self._set_throttle(CHANNEL_VERTICAL, 0.0)
     time.sleep(ARM_SECONDS)
     self._armed = True
 ```
 
 Real ESCs refuse to spin the motor until they've seen a steady neutral
 (stop) signal first — it's a built-in safety behavior so a motor can't jump
-to full speed the instant power is connected. `arm()` does exactly that,
-and `drive()`/`stop()` both refuse to run before `arm()` has been called
-(see `_check_armed`), so the code itself enforces arming before any
-throttle command.
+to full speed the instant power is connected. `arm()` does exactly that
+(position 90 on every channel), and `drive()`/`stop()` both refuse to run
+before `arm()` has been called (see `_check_armed`), so the code itself
+enforces arming before any throttle command.
 
 ### Differential steering
 
 ```python
-def drive(self, forward: float, turn: float, vertical: float):
-    self._left.throttle = self._clamp(forward + turn)
-    self._right.throttle = self._clamp(forward - turn)
-    self._vertical.throttle = self._clamp(vertical)
+def drive(self, forward, turn, vertical):
+    self._set_throttle(CHANNEL_LEFT, self._clamp(forward + turn))
+    self._set_throttle(CHANNEL_RIGHT, self._clamp(forward - turn))
+    self._set_throttle(CHANNEL_VERTICAL, self._clamp(vertical))
 ```
 
 Three simple axes become three thruster commands:
@@ -233,9 +245,10 @@ finally:
     rig.close()
 ```
 
-`close()` sends a stop command before releasing the PCA9685. Because this is
-in a `finally` block, it runs even if you stop the program with `Ctrl+C` —
-the thrusters don't keep running after your program exits.
+`close()` sends a stop command, then calls the HAT's `sleep()` to cut PWM
+output so the ESCs see no signal once we're done. Because this is in a
+`finally` block, it runs even if you stop the program with `Ctrl+C` — the
+thrusters don't keep running after your program exits.
 
 ## 6. Running it
 

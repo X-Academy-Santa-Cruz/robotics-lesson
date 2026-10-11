@@ -1,3 +1,2 @@
-adafruit-blinka
-adafruit-circuitpython-pca9685
-adafruit-circuitpython-motor
+# Drives the SparkFun Pi Servo HAT (PCA9685) for the thrusters.
+pi-servo-hat

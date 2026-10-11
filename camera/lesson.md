@@ -24,7 +24,7 @@ There are **two programs** in this folder that do the same basic job:
 |---|---|---|
 | [`camera_simple.py`](camera_simple.py) | Learning | The beginner version. Short, uses Flask, a comment on almost every line. Start here. |
 | [`stream_server.py`](stream_server.py) | The real ROV | The advanced version. Reads the camera on a background thread, serves several viewers at once, and takes command-line options (via `click`). |
-| [`install.sh`](install.sh) | Setup | One command to update packages and install everything the two programs need. |
+| [`../setup.sh`](../setup.sh) | Setup | Top-level script: one command to set up the whole course (run it from the repo root). |
 
 ## Getting the code: clone the repository
 
@@ -89,19 +89,21 @@ You need three things: **pip3** (Python's package installer), and the Python
 modules the programs use (OpenCV, Flask, click). On the Raspberry Pi (and any
 Ubuntu machine) the simplest way is with `apt-get`.
 
-### Easiest: run the install script
+### Easiest: run the setup script
 
-This folder includes [`install.sh`](install.sh), which updates the package
-lists and installs pip3 plus all the camera packages in one step. From the
-`camera` folder, run:
+The repository has a top-level [`setup.sh`](../setup.sh) that sets up the
+whole course in one step — it updates the package lists and installs pip3
+plus everything the lessons need (camera, joystick, I2C, and the Servo HAT
+library). From the repo root, run:
 
 ```bash
-bash install.sh
+bash setup.sh
 ```
 
 It will ask for your password (because it uses `sudo`). When it finishes,
 skip ahead to [running the simple version](#start-here-the-simple-version-camera_simplepy).
-If you'd rather run the steps yourself, do them by hand below.
+If you'd rather install just the camera packages yourself, do the steps by
+hand below.
 
 ### 1. Install pip3
 
