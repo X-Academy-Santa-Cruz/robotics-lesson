@@ -77,11 +77,15 @@ Pi (Python) --I2C, over the GPIO header--> PCA9685 chip on the Hat
 Each of the Hat's 16 channels breaks out to a standard 3-pin hobby-servo
 header: **signal, power, ground**. In this lesson:
 
-| Thruster | Hat channel |
+| Device | Hat channel |
 |---|---|
-| Left | 0 |
-| Right | 1 |
-| Vertical | 2 |
+| Gripper | 0 |
+| Left thruster | 1 |
+| Right thruster | 2 |
+| Vertical thruster | 3 |
+
+(The gripper is driven in the networked-control lesson; the thruster code in
+this lesson uses channels 1-3.)
 
 Plug each ESC's signal and ground wires into the matching channel's signal
 and ground pins. **Leave the channel's power pin disconnected** unless

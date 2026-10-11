@@ -1,7 +1,7 @@
 """
 Drives three BlueRobotics-style brushless thrusters (left, right, vertical)
-through a SparkFun Pi Servo HAT (PCA9685-based) plugged onto the Pi's GPIO
-header, using the SparkFun pi_servo_hat library.
+and a gripper servo through a SparkFun Pi Servo HAT (PCA9685-based) plugged
+onto the Pi's GPIO header, using the SparkFun pi_servo_hat library.
 
 Run this with the thrusters either out of the water with propellers removed,
 or fully submerged and clear of anyone's hands - never run them in air with
@@ -27,10 +27,16 @@ MAX_PULSE_MS = 1.9  # full forward (1900 us)
 #   position 180 -> MAX_PULSE_MS (full forward)
 SWING = 180
 
-# Which Servo HAT channel each thruster's signal wire is plugged into.
-CHANNEL_LEFT = 0
-CHANNEL_RIGHT = 1
-CHANNEL_VERTICAL = 2
+# Which Servo HAT channel each device is plugged into.
+CHANNEL_GRIPPER = 0
+CHANNEL_LEFT = 1
+CHANNEL_RIGHT = 2
+CHANNEL_VERTICAL = 3
+
+# Gripper servo travel (degrees). A standard positional servo, not an ESC:
+# one end is fully closed, the other fully open. Tune these to your gripper.
+GRIPPER_CLOSED_DEG = 0
+GRIPPER_OPEN_DEG = 180
 
 ARM_SECONDS = 3  # how long to hold neutral before an ESC will accept throttle
 
@@ -47,7 +53,7 @@ def _throttle_to_position(throttle: float) -> float:
 
 
 class ThrusterRig:
-    """Controls the three thrusters as a single unit: left, right, vertical."""
+    """Controls the three thrusters plus the gripper as a single unit."""
 
     def __init__(self, i2c_address: int = 0x40, frequency: int = 50):
         # Create the HAT. The default I2C address of the Pi Servo HAT is 0x40.
@@ -73,6 +79,7 @@ class ThrusterRig:
         self._set_throttle(CHANNEL_LEFT, 0.0)
         self._set_throttle(CHANNEL_RIGHT, 0.0)
         self._set_throttle(CHANNEL_VERTICAL, 0.0)
+        self.set_gripper(0.0)                      # start with the gripper closed
         time.sleep(ARM_SECONDS)
         self._armed = True
         print("Armed.")
@@ -98,6 +105,16 @@ class ThrusterRig:
         self._set_throttle(CHANNEL_RIGHT, self._clamp(forward - turn))
         self._set_throttle(CHANNEL_VERTICAL, self._clamp(vertical))
 
+    def set_gripper(self, amount: float):
+        """Open/close the gripper. amount 0.0 = closed, 1.0 = fully open.
+
+        The gripper is a normal positional servo (not an ESC), so we command
+        it by angle between GRIPPER_CLOSED_DEG and GRIPPER_OPEN_DEG.
+        """
+        amount = max(0.0, min(1.0, amount))
+        angle = GRIPPER_CLOSED_DEG + amount * (GRIPPER_OPEN_DEG - GRIPPER_CLOSED_DEG)
+        self._hat.move_servo_position(CHANNEL_GRIPPER, angle, SWING)
+
     def stop(self):
         self._check_armed()
         self._set_throttle(CHANNEL_LEFT, 0.0)
@@ -114,14 +131,16 @@ class ThrusterRig:
 def demo(rig: ThrusterRig):
     """A short, low-speed sequence to confirm everything is wired correctly."""
     steps = [
-        ("forward, half speed", dict(forward=0.5, turn=0.0, vertical=0.0)),
-        ("turn right in place", dict(forward=0.0, turn=0.5, vertical=0.0)),
-        ("rise", dict(forward=0.0, turn=0.0, vertical=0.5)),
-        ("stop", dict(forward=0.0, turn=0.0, vertical=0.0)),
+        ("forward, half speed", lambda: rig.drive(0.5, 0.0, 0.0)),
+        ("turn right in place", lambda: rig.drive(0.0, 0.5, 0.0)),
+        ("rise", lambda: rig.drive(0.0, 0.0, 0.5)),
+        ("stop", lambda: rig.drive(0.0, 0.0, 0.0)),
+        ("open gripper", lambda: rig.set_gripper(1.0)),
+        ("close gripper", lambda: rig.set_gripper(0.0)),
     ]
-    for label, axes in steps:
+    for label, action in steps:
         print(label)
-        rig.drive(**axes)
+        action()
         time.sleep(2)
 
 

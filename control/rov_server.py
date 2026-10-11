@@ -21,8 +21,12 @@ FAILSAFE_SECONDS = 0.5  # stop the thrusters if no packet arrives for this long
 
 
 def parse_packet(data: bytes):
-    forward, turn, vertical = (float(v) for v in data.decode("utf-8").split(","))
-    return forward, turn, vertical
+    # Packets are "forward,turn,vertical,gripper". Older packets without a
+    # gripper value still work - the gripper just defaults to closed (0.0).
+    parts = [float(v) for v in data.decode("utf-8").split(",")]
+    forward, turn, vertical = parts[0], parts[1], parts[2]
+    gripper = parts[3] if len(parts) > 3 else 0.0
+    return forward, turn, vertical, gripper
 
 
 def main():
@@ -50,10 +54,11 @@ def main():
                 print("No command received - stopping thrusters (failsafe)")
                 continue
             try:
-                forward, turn, vertical = parse_packet(data)
-            except ValueError:
+                forward, turn, vertical, gripper = parse_packet(data)
+            except (ValueError, IndexError):
                 continue  # ignore a malformed packet, just wait for the next one
             rig.drive(forward, turn, vertical)
+            rig.set_gripper(gripper)
     except KeyboardInterrupt:
         pass
     finally:

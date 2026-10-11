@@ -29,6 +29,7 @@ sudo apt-get update
 # ---- 2. System packages ------------------------------------------------------
 echo ">>> [2/4] Installing pip3 and system packages..."
 sudo apt-get install -y \
+    git \
     python3-pip \
     python3-venv \
     python3-opencv \
@@ -47,14 +48,29 @@ sudo apt-get install -y \
 #   python3-smbus   SMBus  -- talking to I2C devices from Python
 #   i2c-tools       i2cdetect and friends, to find devices on the I2C bus
 
-# ---- 3. Python modules with no apt package (installed with pip3) -------------
-echo ">>> [3/4] Installing the SparkFun Pi Servo HAT library (pip3)..."
+# ---- 3. SparkFun Pi Servo HAT library (built from SparkFun's source) ---------
+echo ">>> [3/4] Installing the SparkFun Pi Servo HAT library from source..."
 # The SparkFun Pi Servo HAT library drives the PCA9685 servo/PWM controller
-# for the thrusters and the gripper. It isn't packaged in apt, so use pip3.
-# On newer Ubuntu/Debian, pip outside a venv needs --break-system-packages.
-if ! sudo pip3 install pi-servo-hat 2>/dev/null; then
+# for the thrusters and the gripper. We build it from SparkFun's own source so
+# we get exactly their code. pip installs its dependencies (qwiic_i2c,
+# qwiic_pca9685) automatically from the project's pyproject.toml.
+SERVO_HAT_REPO="https://github.com/sparkfun/PiServoHat_Py.git"
+SERVO_HAT_DIR="${HOME}/PiServoHat_Py"
+
+# Clone it (or update it if it's already there from a previous run).
+if [ -d "$SERVO_HAT_DIR/.git" ]; then
+    echo "    Updating existing clone in $SERVO_HAT_DIR ..."
+    git -C "$SERVO_HAT_DIR" pull --ff-only
+else
+    echo "    Cloning $SERVO_HAT_REPO into $SERVO_HAT_DIR ..."
+    git clone "$SERVO_HAT_REPO" "$SERVO_HAT_DIR"
+fi
+
+# Install it. On newer Ubuntu/Debian, pip outside a venv needs
+# --break-system-packages.
+if ! sudo pip3 install "$SERVO_HAT_DIR" 2>/dev/null; then
     echo "    (retrying with --break-system-packages for newer OS versions)"
-    sudo pip3 install --break-system-packages pi-servo-hat
+    sudo pip3 install --break-system-packages "$SERVO_HAT_DIR"
 fi
 
 # ---- 4. Enable I2C for the SparkFun Pi Servo HAT -----------------------------

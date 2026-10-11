@@ -86,52 +86,73 @@ leave it running at that speed indefinitely.
 ### The wire format
 
 ```python
-forward, turn, vertical = (float(v) for v in data.decode("utf-8").split(","))
+parts = [float(v) for v in data.decode("utf-8").split(",")]
+forward, turn, vertical = parts[0], parts[1], parts[2]
+gripper = parts[3] if len(parts) > 3 else 0.0
 ```
 
-Each packet is just a UTF-8 string like `"0.5,-0.2,0.0"` — three
-comma-separated numbers. There's no library or framework involved; this is
-a format we made up because it's the simplest thing that works and is easy
-to read if you ever print one. A malformed packet just gets skipped
-(`except ValueError: continue`) rather than crashing the server.
+Each packet is just a UTF-8 string like `"0.5,-0.2,0.0,1.0"` — four
+comma-separated numbers: forward, turn, vertical, and the gripper
+(`0.0` = closed, `1.0` = open). There's no library or framework involved;
+this is a format we made up because it's the simplest thing that works and
+is easy to read if you ever print one. An older three-number packet still
+works (the gripper just defaults to closed), and a malformed packet gets
+skipped (`except (ValueError, IndexError): continue`) rather than crashing
+the server. The server then calls both `rig.drive(...)` and
+`rig.set_gripper(gripper)`.
 
 ## 4. Reading `pilot.py` (runs on the laptop)
 
-### Finding your controller's axis numbers
+### Two controllers are supported
 
-Game controllers don't have a standard numbering for which stick is which
-axis — it depends on the controller and your operating system. Before
-flying anything, run:
+`pilot.py` knows two controllers and picks the right one automatically from
+its name:
+
+| Controller | forward | turn | vertical | gripper (trigger) |
+|---|---|---|---|---|
+| Logitech Extreme 3D Pro ("3D Extreme") | stick pitch | stick twist | throttle slider | trigger button — hold to open |
+| Logitech F310 gamepad | left stick Y | left stick X | right stick Y | right trigger (RT) — squeeze to open |
+
+Each controller is described by a small `ControllerProfile` near the top of
+`pilot.py` (`PROFILE_EXTREME_3D` and `PROFILE_F310`). A profile just lists
+which axis is forward/turn/vertical, which ones to invert so "push up" is
+positive, and where the gripper trigger is — a **button** on the 3D Extreme,
+an analog **axis** (RT) on the F310.
+
+### Finding your controller's numbers
+
+Axis and button numbering isn't standardized — it depends on the controller
+and your operating system (the F310 also has an X/D switch that changes its
+layout; use **X**). If a control does the wrong thing, run:
 
 ```bash
 python3 pilot.py <pi-ip-address> --calibrate
 ```
 
-and wiggle each stick one at a time, watching which number in the printed
-list changes and whether it goes positive or negative in the direction you
-expect. Update `AXIS_FORWARD`, `AXIS_TURN`, and `AXIS_VERTICAL` at the top
-of `pilot.py` to match what you find.
+Move each stick, slider, and trigger one at a time and watch which number
+changes. Then adjust the matching `ControllerProfile` to match what you see.
 
 ### The control loop
 
 ```python
-forward = -apply_deadzone(joystick.get_axis(AXIS_FORWARD))
-turn = apply_deadzone(joystick.get_axis(AXIS_TURN))
-vertical = -apply_deadzone(joystick.get_axis(AXIS_VERTICAL))
+forward = read_axis(profile.axis_forward, profile.invert_forward)
+turn = read_axis(profile.axis_turn, profile.invert_turn)
+vertical = read_axis(profile.axis_vertical, profile.invert_vertical)
+gripper = read_gripper(joystick, profile)   # 0.0 closed .. 1.0 open
 
-message = f"{forward},{turn},{vertical}".encode("utf-8")
+message = f"{forward},{turn},{vertical},{gripper}".encode("utf-8")
 sock.sendto(message, target)
 
 time.sleep(interval)
 ```
 
-Every iteration: read the current stick positions, build the same
-`"forward,turn,vertical"` string `rov_server.py` expects, and send it — at
-a steady 20 times a second (`SEND_RATE_HZ`), **whether or not anything
-changed**. Sending continuously (instead of only when the sticks move) is
-what makes the Pi's failsafe meaningful: as long as `pilot.py` is running
-and connected, the Pi keeps getting fresh "still here" packets, and the
-instant that stops, the failsafe notices within half a second.
+Every iteration: read the controls through the active profile, build the
+`"forward,turn,vertical,gripper"` string `rov_server.py` expects, and send
+it — at a steady 20 times a second (`SEND_RATE_HZ`), **whether or not
+anything changed**. Sending continuously (instead of only when the sticks
+move) is what makes the Pi's failsafe meaningful: as long as `pilot.py` is
+running and connected, the Pi keeps getting fresh "still here" packets, and
+the instant that stops, the failsafe notices within half a second.
 
 ### The deadzone
 
@@ -196,7 +217,7 @@ the failsafe message and stop the thrusters on its own.
 | Problem | Likely cause |
 |---|---|
 | `No game controller detected` | Controller isn't connected/paired, or your OS needs a driver — check it shows up in your OS's controller/Bluetooth settings first |
-| Sticks move a thruster, but the wrong one, or the wrong direction | Re-run `--calibrate` and fix the `AXIS_*` constants (and add a `-` sign if a direction is flipped) |
+| Sticks move a thruster, but the wrong one, or the wrong direction | Re-run `--calibrate` and fix the axis numbers / invert flags in the matching `ControllerProfile` |
 | `rov_server.py` never prints anything, thrusters never move | Confirm you're sending to the right `<pi-ip-address>` and that `--port` matches on both ends (default 5005) |
 | Everything works, then the thrusters stop on their own and "failsafe" prints repeatedly | This is expected if `pilot.py` isn't running or your network dropped — it's the safety behavior working correctly, not a bug |
 
@@ -209,9 +230,9 @@ the failsafe message and stop the thrusters on its own.
 3. Change `SEND_RATE_HZ` to something very low, like `2`, and notice how
    sluggish/jerky control feels — this is latency you're introducing
    yourself, on top of whatever the network adds.
-4. Add a fourth value to the wire format — a trigger-button "turbo" flag
-   that temporarily allows throttle above what the sticks alone would give,
-   and have `rov_server.py` use it to scale the `drive()` call.
+4. The wire format already carries a gripper value driven by the trigger.
+   Add a *fifth* value — a "turbo" flag from another button — and have
+   `rov_server.py` use it to scale the `drive()` call.
 5. (Advanced) Add a sequence number to each packet and have
    `rov_server.py` ignore any packet that arrives with a lower sequence
    number than one it's already processed — this protects against a
