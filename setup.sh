@@ -190,6 +190,25 @@ enable_i2c() {
     fi
 }
 
+allow_passwordless_reboot() {
+    # Let the student reboot and power off without a password prompt, so a
+    # plain "sudo reboot" / "sudo poweroff" just works. We grant NOPASSWD for
+    # exactly those two commands (and systemctl reboot/poweroff), nothing else.
+    local f="/etc/sudoers.d/010_${TARGET_USER}-reboot"
+    cat > "$f" <<EOF
+${TARGET_USER} ALL=(ALL) NOPASSWD: /sbin/reboot, /usr/sbin/reboot, /sbin/poweroff, /usr/sbin/poweroff, /bin/systemctl reboot, /bin/systemctl poweroff
+EOF
+    chmod 440 "$f"
+    # Refuse to leave a broken sudoers file in place.
+    if visudo -cf "$f" >/dev/null 2>&1; then
+        info "Enabled passwordless 'sudo reboot' / 'sudo poweroff' for ${TARGET_USER}."
+    else
+        warn "sudoers rule for reboot was invalid; removing it."
+        rm -f "$f"
+        return 1
+    fi
+}
+
 install_chrome() {
     if dpkg -s google-chrome-stable >/dev/null 2>&1; then
         info "Google Chrome is already installed. Skipping."
@@ -436,6 +455,7 @@ run_step "Installing emacs, git and openssh-server"       install_apt_packages
 run_step "Installing pip3 and Python modules"             install_python_modules
 run_step "Installing the SparkFun Pi Servo HAT library"   install_servo_hat
 run_step "Enabling the I2C bus"                           enable_i2c
+run_step "Allowing passwordless sudo reboot"               allow_passwordless_reboot
 run_step "Installing Google Chrome"                       install_chrome
 run_step "Installing PyCharm"                             install_pycharm
 run_step "Pinning PyCharm and Chrome to the dock"         pin_to_dock

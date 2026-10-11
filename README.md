@@ -42,7 +42,8 @@ new to Linux or version control.
 
 | Lesson | Folder |
 |---|---|
-| Linux Shell Basics | [`shell/`](shell/lesson.md) |
+| Raspberry Pi and Linux | [`shell/`](shell/lesson.md) |
+| Hello, World (your first app in PyCharm) | [`hello/`](hello/lesson.md) |
 | Git Basics | [`git/`](git/lesson.md) |
 | PyCharm for Remote ROV Development | [`pycharm/`](pycharm/lesson.md) |
 | Debugging: print() vs PyCharm's Debugger | [`debugging/`](debugging/lesson.md) |

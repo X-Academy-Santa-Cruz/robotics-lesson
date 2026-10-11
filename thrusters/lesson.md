@@ -303,3 +303,9 @@ stop at the end. If a thruster spins the wrong direction, see below.
 4. Write your own short sequence (a list of `(label, axes)` steps like
    `demo()`) that moves in a square-ish pattern: forward, turn, forward,
    turn, stop.
+
+## Reference: the Python module used here
+
+- **SparkFun Pi Servo HAT** (`pi_servo_hat`) — drives the PCA9685 on the HAT:
+  docs <https://docs.sparkfun.com/piservohat_py/>, source
+  <https://github.com/sparkfun/PiServoHat_Py>

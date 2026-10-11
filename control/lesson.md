@@ -237,3 +237,13 @@ the failsafe message and stop the thrusters on its own.
    `rov_server.py` ignore any packet that arrives with a lower sequence
    number than one it's already processed — this protects against a
    late/reordered UDP packet momentarily overriding a newer command.
+
+## Reference: the Python modules used here
+
+- **pygame** — reading the game controller in `pilot.py`:
+  <https://www.pygame.org/docs/> (joystick:
+  <https://www.pygame.org/docs/ref/joystick.html>)
+- **socket** (Python standard library) — the UDP link between `pilot.py` and
+  `rov_server.py`: <https://docs.python.org/3/library/socket.html>
+- **SparkFun Pi Servo HAT** (`pi_servo_hat`) — used via `ThrusterRig` to drive
+  the thrusters and gripper: <https://docs.sparkfun.com/piservohat_py/>

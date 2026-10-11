@@ -313,3 +313,17 @@ read the gap directly, instead of trying to perceive it in real time.
    `time.sleep(1 / 30)` value instead of hard-coding 30.
 5. Measure the stream's end-to-end latency using the phone-photo method
    above, at two different resolutions, and record both numbers.
+
+## Reference: the Python modules used here
+
+Official documentation for the libraries these programs use:
+
+- **OpenCV** (`cv2`) — reading the camera and encoding JPEGs:
+  <https://docs.opencv.org/4.x/> (VideoCapture:
+  <https://docs.opencv.org/4.x/d8/dfe/classcv_1_1VideoCapture.html>)
+- **Flask** — the web server in `camera_simple.py`:
+  <https://flask.palletsprojects.com/>
+- **click** — command-line options in `stream_server.py`:
+  <https://click.palletsprojects.com/>
+- **http.server** (Python standard library) — the server in `stream_server.py`:
+  <https://docs.python.org/3/library/http.server.html>
