@@ -27,7 +27,7 @@ joystick, I2C, and the SparkFun Pi Servo HAT library for servos/PWM), and
 enables the I2C bus:
 
 ```bash
-bash setup.sh
+sudo ./setup.sh
 ```
 
 Reboot and log out/in if the script says to, then confirm the Servo HAT is on

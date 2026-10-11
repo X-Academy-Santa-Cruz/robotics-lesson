@@ -104,7 +104,7 @@ power.
 > and adds you to the `i2c` group. From the top of the repo, run:
 >
 > ```bash
-> bash setup.sh
+> sudo ./setup.sh
 > ```
 >
 > Then reboot (and log out/in) as the script tells you, and confirm the Hat

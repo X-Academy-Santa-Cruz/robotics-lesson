@@ -97,7 +97,7 @@ plus everything the lessons need (camera, joystick, I2C, and the Servo HAT
 library). From the repo root, run:
 
 ```bash
-bash setup.sh
+sudo ./setup.sh
 ```
 
 It will ask for your password (because it uses `sudo`). When it finishes,

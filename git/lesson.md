@@ -42,7 +42,7 @@ setup script one time from the top of the repo. It gets the Pi ready for
 every lesson in one step:
 
 ```bash
-bash setup.sh
+sudo ./setup.sh
 ```
 
 It will ask for your password (it uses `sudo`). It updates the package
