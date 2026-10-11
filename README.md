@@ -19,6 +19,22 @@ any example code that goes with it.
 - **PyCharm Professional** installed on the topside laptop for writing,
   running, and debugging code — including code that runs on the Pi over SSH
 
+## Setup
+
+On the Raspberry Pi (Ubuntu), run the setup script once from the top of the
+repo. It updates packages, installs everything the lessons need (camera,
+joystick, I2C, and the SparkFun Pi Servo HAT library for servos/PWM), and
+enables the I2C bus:
+
+```bash
+bash setup.sh
+```
+
+Reboot and log out/in if the script says to, then confirm the Servo HAT is on
+the I2C bus with `i2cdetect -y 1` (it should show `40`). Each lesson folder
+also has its own, narrower install notes if you prefer to set things up
+lesson by lesson.
+
 ## Foundations
 
 Skills you need before writing ROV code. Work through these first if you're

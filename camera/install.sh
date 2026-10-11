@@ -9,6 +9,10 @@
 # It updates the package lists, then installs pip3 and the Python modules the
 # two camera programs use: OpenCV (both), Flask (camera_simple.py), and
 # click (stream_server.py).
+#
+# This script covers the CAMERA lesson only. To set up the whole course at
+# once (camera + joystick + I2C + the SparkFun Pi Servo HAT), run the
+# top-level setup.sh in the repo root instead:  bash ../setup.sh
 
 set -e   # stop immediately if any command fails
 

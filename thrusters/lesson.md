@@ -94,6 +94,19 @@ power.
 
 ## 3. Enabling I2C on the Pi
 
+> **Shortcut:** the repository includes a top-level setup script that does
+> everything in sections 3 and 4 for you — updates packages, installs the
+> libraries (including the SparkFun **pi-servo-hat** library), enables I2C,
+> and adds you to the `i2c` group. From the top of the repo, run:
+>
+> ```bash
+> bash setup.sh
+> ```
+>
+> Then reboot (and log out/in) as the script tells you, and confirm the Hat
+> appears with `i2cdetect -y 1`. If you'd rather understand each step, do
+> them by hand below.
+
 Ubuntu on the Pi doesn't have I2C turned on by default.
 
 ```bash
