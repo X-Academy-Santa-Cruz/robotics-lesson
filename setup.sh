@@ -132,9 +132,10 @@ install_python_modules() {
     #   python3-pygame  pygame -- thrusters/control (reads the joystick)
     #   python3-smbus   SMBus -- talking to I2C devices from Python
     #   i2c-tools       i2cdetect and friends, to find devices on the I2C bus
+    #   python3-matplotlib  matplotlib -- plotting the I2C temperature sensor
     apt-get -y install \
         python3-pip python3-opencv python3-flask python3-click \
-        python3-pygame python3-smbus i2c-tools
+        python3-pygame python3-smbus i2c-tools python3-matplotlib
 }
 
 install_servo_hat() {
@@ -206,6 +207,20 @@ EOF
         warn "sudoers rule for reboot was invalid; removing it."
         rm -f "$f"
         return 1
+    fi
+}
+
+install_sensor_libs() {
+    # Python libraries for the I2C temperature-sensor (STTS22H) lesson:
+    #   smbus2                 register-level I2C (temperature_smbus2.py)
+    #   circuitpython-stts22h  high-level STTS22H driver (temperature.py)
+    #   adafruit-blinka        lets CircuitPython libraries run on a Pi
+    # These are pip-only. On newer OS releases pip outside a venv needs
+    # --break-system-packages.
+    local pkgs="smbus2 circuitpython-stts22h adafruit-blinka"
+    if ! pip3 install $pkgs 2>/dev/null; then
+        info "(retrying with --break-system-packages for newer OS versions)"
+        pip3 install --break-system-packages $pkgs
     fi
 }
 
@@ -454,6 +469,7 @@ run_step "Updating packages"                              update_packages
 run_step "Installing emacs, git and openssh-server"       install_apt_packages
 run_step "Installing pip3 and Python modules"             install_python_modules
 run_step "Installing the SparkFun Pi Servo HAT library"   install_servo_hat
+run_step "Installing the I2C sensor libraries"            install_sensor_libs
 run_step "Enabling the I2C bus"                           enable_i2c
 run_step "Allowing passwordless sudo reboot"               allow_passwordless_reboot
 run_step "Installing Google Chrome"                       install_chrome

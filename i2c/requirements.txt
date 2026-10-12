@@ -1,0 +1,11 @@
+# Reading the STTS22H temperature sensor over I2C, and plotting it.
+#
+# temperature.py (library version) needs:
+circuitpython-stts22h     # high-level driver: sensor.temperature
+adafruit-blinka           # lets CircuitPython libraries run on a Raspberry Pi
+#
+# temperature_smbus2.py (register-level alternative) needs:
+smbus2                    # talk to I2C devices by register, no sensor library
+#
+# both versions plot with:
+matplotlib                # live plot of the temperature (pyplot)
