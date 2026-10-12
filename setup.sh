@@ -6,17 +6,29 @@
 # What it does:
 #   1. Updates all installed packages
 #   2. Installs emacs, git and openssh-server (and turns SSH on)
-#   3. Installs pip3 and the Python modules the lessons use:
+#   3. Installs pip3 and the Python modules the lessons use *as apt packages*,
+#      so they don't clash with the system Python:
 #        OpenCV  (camera: both programs)
 #        Flask   (camera: camera_simple.py)
 #        click   (camera: stream_server.py)
 #        pygame  (thrusters / control: reads the joystick)
+#        matplotlib (i2c: plots the temperature sensor)
 #      plus the I2C tools (i2c-tools, python3-smbus)
-#   4. Installs the SparkFun Pi Servo HAT library from SparkFun's own source
-#      (git clone + pip install) for the thrusters and gripper (servos / PWM)
-#   5. Enables the I2C bus and adds you to the i2c group so the Servo HAT works
-#   6. Installs Google Chrome (official ARM64 build from Google)
-#   7. Installs PyCharm (latest ARM64 release from JetBrains) into /opt/pycharm
+#   4. Creates one shared virtual environment at the repo root
+#        (~/robotics-lesson/.venv, with --system-site-packages so it can still
+#         see the apt-installed modules above) for the few libraries that are
+#         pip-only (no apt package). Everything pip installs goes in here, so
+#         the system Python is never touched.
+#   5. Installs the SparkFun Pi Servo HAT library from SparkFun's own source
+#      (git clone + pip install into the venv) for the thrusters and gripper
+#   6. Installs the I2C temperature-sensor libraries (pip-only) into the venv
+#   7. Enables the I2C bus and adds you to the i2c group so the Servo HAT works
+#   8. Installs Google Chrome (official ARM64 build from Google)
+#   9. Installs PyCharm (latest ARM64 release from JetBrains) into /opt/pycharm
+#
+# After it runs, activate the venv before running the lessons:
+#   source ~/robotics-lesson/.venv/bin/activate
+# (or point PyCharm's interpreter at ~/robotics-lesson/.venv/bin/python).
 #
 # Requirements:
 #   - Raspberry Pi 4 or 5 running a 64-bit (arm64) OS (Raspberry Pi OS Bookworm
@@ -43,6 +55,13 @@ FORCE_PYCHARM="${FORCE_PYCHARM:-0}"
 MIN_FREE_GB=6
 
 SERVO_HAT_REPO="https://github.com/sparkfun/PiServoHat_Py.git"
+
+# The one shared virtual environment for the whole course, at the repo root.
+# It is created with --system-site-packages so it can see the apt-installed
+# modules (OpenCV, Flask, pygame, matplotlib) while holding the pip-only ones.
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_DIR="${REPO_DIR}/.venv"
+VENV_PIP="${VENV_DIR}/bin/pip"
 
 FAILED_STEPS=()
 
@@ -124,8 +143,10 @@ install_apt_packages() {
 }
 
 install_python_modules() {
-    # Python modules the lesson programs use:
+    # Python modules the lesson programs use, installed as apt packages so they
+    # don't overwrite anything in the system Python:
     #   python3-pip     pip3 -- Python's package installer
+    #   python3-venv    the tool that creates the shared virtual environment
     #   python3-opencv  OpenCV -- camera (reads the camera, makes JPEGs)
     #   python3-flask   Flask -- camera (web server for camera_simple.py)
     #   python3-click   click -- camera (command-line options for stream_server.py)
@@ -134,8 +155,32 @@ install_python_modules() {
     #   i2c-tools       i2cdetect and friends, to find devices on the I2C bus
     #   python3-matplotlib  matplotlib -- plotting the I2C temperature sensor
     apt-get -y install \
-        python3-pip python3-opencv python3-flask python3-click \
+        python3-pip python3-venv python3-opencv python3-flask python3-click \
         python3-pygame python3-smbus i2c-tools python3-matplotlib
+}
+
+create_venv() {
+    # One shared virtual environment for the whole course, at the repo root.
+    #
+    # Why a venv: the few libraries that are pip-only (no apt package) -- the
+    # SparkFun Pi Servo HAT library and the I2C sensor drivers -- get installed
+    # in here instead of into the system Python, so a "pip install" can never
+    # overwrite a package the operating system depends on.
+    #
+    # --system-site-packages lets code running in the venv still see the
+    # apt-installed modules above (OpenCV, Flask, pygame, matplotlib), so the
+    # lessons only need the venv active -- nothing has to be pip-installed twice.
+    if [[ ! -d "$VENV_DIR" ]]; then
+        info "Creating the shared virtual environment in $VENV_DIR ..."
+        sudo -u "$TARGET_USER" python3 -m venv --system-site-packages "$VENV_DIR"
+    else
+        info "Virtual environment already exists in $VENV_DIR."
+    fi
+
+    # Keep pip itself current inside the venv (quietly; not fatal if offline).
+    sudo -u "$TARGET_USER" "$VENV_PIP" install --upgrade pip >/dev/null 2>&1 || true
+
+    info "Lessons run with this venv active:  source $VENV_DIR/bin/activate"
 }
 
 install_servo_hat() {
@@ -153,12 +198,10 @@ install_servo_hat() {
         sudo -u "$TARGET_USER" git clone "$SERVO_HAT_REPO" "$dir"
     fi
 
-    # Install it system-wide. On newer OS releases pip outside a venv needs
-    # --break-system-packages.
-    if ! pip3 install "$dir" 2>/dev/null; then
-        info "(retrying with --break-system-packages for newer OS versions)"
-        pip3 install --break-system-packages "$dir"
-    fi
+    # Install it into the shared venv (not the system Python), so it can't
+    # clash with any apt package. pip pulls its dependencies (qwiic_i2c,
+    # qwiic_pca9685) from the project's pyproject.toml automatically.
+    sudo -u "$TARGET_USER" "$VENV_PIP" install "$dir"
 }
 
 enable_i2c() {
@@ -215,13 +258,8 @@ install_sensor_libs() {
     #   smbus2                 register-level I2C (temperature_smbus2.py)
     #   circuitpython-stts22h  high-level STTS22H driver (temperature.py)
     #   adafruit-blinka        lets CircuitPython libraries run on a Pi
-    # These are pip-only. On newer OS releases pip outside a venv needs
-    # --break-system-packages.
-    local pkgs="smbus2 circuitpython-stts22h adafruit-blinka"
-    if ! pip3 install $pkgs 2>/dev/null; then
-        info "(retrying with --break-system-packages for newer OS versions)"
-        pip3 install --break-system-packages $pkgs
-    fi
+    # These are pip-only (no apt package), so they go into the shared venv.
+    sudo -u "$TARGET_USER" "$VENV_PIP" install smbus2 circuitpython-stts22h adafruit-blinka
 }
 
 install_chrome() {
@@ -410,10 +448,18 @@ print_summary() {
         fi
     done
 
-    if python3 -c 'import pi_servo_hat' >/dev/null 2>&1; then
-        info "[ OK ] pi_servo_hat (SparkFun Pi Servo HAT library)"
+    if [[ -d "$VENV_DIR" ]]; then
+        info "[ OK ] virtual environment ($VENV_DIR)"
     else
-        info "[FAIL] pi_servo_hat is not importable"
+        info "[FAIL] virtual environment was not created"
+    fi
+
+    # Check the pip-only libraries inside the venv (not the system Python).
+    local venv_py="$VENV_DIR/bin/python"
+    if [[ -x "$venv_py" ]] && sudo -u "$TARGET_USER" "$venv_py" -c 'import pi_servo_hat' >/dev/null 2>&1; then
+        info "[ OK ] pi_servo_hat (SparkFun Pi Servo HAT library, in the venv)"
+    else
+        info "[FAIL] pi_servo_hat is not importable from the venv"
     fi
 
     if [[ -d "$PYCHARM_DIR/bin" ]]; then
@@ -449,8 +495,12 @@ print_summary() {
     info "shows the pinned PyCharm and Chrome icons on the dock/taskbar):"
     info "    sudo reboot"
     info "If you were just added to the 'i2c' group, log out and back in too."
+    echo
+    info "Before running the lessons, activate the shared virtual environment:"
+    info "    source ${VENV_DIR}/bin/activate"
+    info "(In PyCharm, set the project interpreter to ${VENV_DIR}/bin/python.)"
     info "Then run a camera program from the camera folder, for example:"
-    info "    python3 camera_simple.py"
+    info "    cd ${REPO_DIR}/camera && python3 camera_simple.py"
 }
 
 # ---------------------------------------------------------------------------
@@ -467,7 +517,8 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 
 run_step "Updating packages"                              update_packages
 run_step "Installing emacs, git and openssh-server"       install_apt_packages
-run_step "Installing pip3 and Python modules"             install_python_modules
+run_step "Installing pip3 and Python modules (apt)"       install_python_modules
+run_step "Creating the shared virtual environment"        create_venv
 run_step "Installing the SparkFun Pi Servo HAT library"   install_servo_hat
 run_step "Installing the I2C sensor libraries"            install_sensor_libs
 run_step "Enabling the I2C bus"                           enable_i2c

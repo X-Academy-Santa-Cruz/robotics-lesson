@@ -116,10 +116,14 @@ sudo ./setup.sh
 it's doing and finishes with a summary. It:
 
 - updates all packages, and installs emacs, git, and the SSH server
-- installs **pip3** and the Python modules the lessons use: OpenCV, Flask,
-  click, and pygame, plus the I2C tools
-- installs the **SparkFun Pi Servo HAT** library (for the thrusters/gripper)
-  and turns on the I2C bus
+- installs **pip3** and the Python modules the lessons use as apt packages,
+  so they don't clash with the system Python: OpenCV, Flask, click, pygame,
+  and matplotlib, plus the I2C tools
+- creates one **shared virtual environment** at the repo root
+  (`~/robotics-lesson/.venv`) and installs the pip-only libraries into it —
+  the SparkFun Pi Servo HAT library and the I2C sensor drivers — so nothing
+  pip installs ever overwrites a system package
+- turns on the I2C bus
 - installs **Google Chrome** and **PyCharm**, and pins them to the dock
 
 When it finishes, **reboot** (see section 8). After rebooting, confirm the
@@ -128,6 +132,16 @@ Servo HAT is on the I2C bus — it should show up at address `40`:
 ```bash
 i2cdetect -y 1
 ```
+
+Before running any lesson, activate the shared virtual environment so every
+lesson uses the same Python (your prompt then shows `(.venv)`):
+
+```bash
+source ~/robotics-lesson/.venv/bin/activate
+```
+
+(In PyCharm, point the project interpreter at
+`~/robotics-lesson/.venv/bin/python` instead — see the PyCharm lesson.)
 
 ## 6. Linux commands you'll use constantly
 

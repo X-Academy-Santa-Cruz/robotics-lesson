@@ -1,2 +1,8 @@
-# Drives the SparkFun Pi Servo HAT (PCA9685) for the thrusters.
-pi-servo-hat
+# Python packages for the thrusters lesson (pip install -r requirements.txt
+# INTO the shared venv -- the course setup script does this for you).
+#
+# Pip-only (no apt package):
+pi-servo-hat              # SparkFun Pi Servo HAT (PCA9685) driver for the thrusters
+#
+# Provided by apt (installed by setup.sh), so not listed above:
+#   python3-pygame   pygame -- reads the joystick (used by the control lesson)

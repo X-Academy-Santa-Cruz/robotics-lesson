@@ -185,24 +185,24 @@ the SSH remote interpreter from the [PyCharm lesson](../pycharm/lesson.md),
 you can run both Pi-side scripts as separate Run configurations instead of
 juggling SSH windows.
 
-1. **On the Pi** — start the camera stream (from the camera lesson):
+1. **On the Pi** — start the camera stream (from the camera lesson). Activate
+   the shared course venv first:
    ```bash
-   cd robotics-lesson/camera && source venv/bin/activate
-   python3 stream_server.py
+   source ~/robotics-lesson/.venv/bin/activate
+   cd ~/robotics-lesson/camera && python3 stream_server.py
    ```
-2. **On the Pi, in a second session** — start the control listener, using
-   the same virtual environment you set up for the thrusters lesson (it
-   already has everything `rov_server.py` needs):
+2. **On the Pi, in a second session** — start the control listener. It uses
+   the same shared venv (which already has everything `rov_server.py` needs):
    ```bash
-   cd robotics-lesson/thrusters && source venv/bin/activate
-   python3 ../control/rov_server.py
+   source ~/robotics-lesson/.venv/bin/activate
+   cd ~/robotics-lesson/thrusters && python3 ../control/rov_server.py
    ```
 3. **On your laptop** — open the camera stream in a browser
-   (`http://<pi-ip-address>:8000/`), then in a terminal:
+   (`http://<pi-ip-address>:8000/`), then in a terminal. On the Pi, `pilot.py`
+   only needs pygame, which the setup script installs via apt; if you're on a
+   laptop without it, make a venv there and `pip install -r requirements.txt`:
    ```bash
    cd robotics-lesson/control
-   python3 -m venv venv && source venv/bin/activate
-   pip install -r requirements.txt
    python3 pilot.py <pi-ip-address> --calibrate   # find your axis numbers first
    python3 pilot.py <pi-ip-address>                # then actually fly
    ```

@@ -151,16 +151,18 @@ Hat, at its default address, `0x40`.
 ## 4. Install the Python library
 
 The thruster code uses the SparkFun **pi-servo-hat** library, which drives
-the PCA9685 chip on the Servo HAT. The top-level `setup.sh` already installs
-it, so if you ran that you can skip ahead. To install just this library by
-hand:
+the PCA9685 chip on the Servo HAT. It's pip-only (there's no apt package), so
+the top-level `setup.sh` installs it into the shared course virtual
+environment at `~/robotics-lesson/.venv`. If you ran `setup.sh` you can skip
+ahead.
+
+To install just this library by hand, do it **inside the shared venv** so it
+never touches the system Python:
 
 ```bash
-pip3 install pi-servo-hat
+source ~/robotics-lesson/.venv/bin/activate   # prompt shows (.venv)
+pip install -r requirements.txt               # installs pi-servo-hat
 ```
-
-(On newer Ubuntu/Debian, pip outside a virtual environment needs
-`pip3 install --break-system-packages pi-servo-hat`, or make a venv first.)
 
 This one library is all the thruster code needs — it talks to the Servo HAT
 over I2C and does the pulse-width math for us.
@@ -260,8 +262,8 @@ With the thrusters wired, propellers removed or safely submerged, and the
 safety steps from the top of this lesson followed:
 
 ```bash
-cd robotics-lesson/thrusters
-source venv/bin/activate
+source ~/robotics-lesson/.venv/bin/activate
+cd ~/robotics-lesson/thrusters
 python3 thruster_control.py
 ```
 

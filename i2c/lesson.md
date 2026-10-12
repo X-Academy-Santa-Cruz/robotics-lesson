@@ -64,10 +64,13 @@ Both versions below print the same temperatures and draw the same graph.
 
 ## The library version: `temperature.py`
 
-Install the driver (the setup script may already have done this):
+Install the driver (the setup script may already have done this). The driver is
+pip-only, so install it **into the shared course venv** — matplotlib comes from
+apt and the venv already sees it:
 
 ```bash
-pip3 install circuitpython-stts22h adafruit-blinka matplotlib
+source ~/robotics-lesson/.venv/bin/activate   # prompt shows (.venv)
+pip install circuitpython-stts22h adafruit-blinka
 ```
 
 The whole read is three lines:
@@ -79,10 +82,11 @@ sensor = stts22h.STTS22H(i2c)     # default address 0x3C
 print(sensor.temperature)         # degrees Celsius
 ```
 
-Run it on the Pi:
+Run it on the Pi (with the venv active):
 
 ```bash
-cd robotics-lesson/i2c
+source ~/robotics-lesson/.venv/bin/activate
+cd ~/robotics-lesson/i2c
 python3 temperature.py            # live graph
 python3 temperature.py --no-plot  # just print readings (good over SSH)
 ```
@@ -97,10 +101,12 @@ Press `Ctrl+C` to stop.
 ## The register-level alternative: `temperature_smbus2.py`
 
 This version uses only `smbus2` and talks to the STTS22H's registers directly.
-Install it (and matplotlib) if you haven't:
+`smbus2` is pip-only; install it into the shared venv if you haven't
+(matplotlib comes from apt):
 
 ```bash
-pip3 install smbus2 matplotlib
+source ~/robotics-lesson/.venv/bin/activate
+pip install smbus2
 ```
 
 ### How it reads the chip
@@ -138,7 +144,8 @@ The full file adds a WHO_AM_I check, starts continuous mode by writing CTRL,
 and plots the readings. Run it the same way:
 
 ```bash
-cd robotics-lesson/i2c
+source ~/robotics-lesson/.venv/bin/activate
+cd ~/robotics-lesson/i2c
 python3 temperature_smbus2.py
 python3 temperature_smbus2.py --no-plot
 ```

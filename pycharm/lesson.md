@@ -26,10 +26,11 @@ Pi**, not on your laptop. PyCharm Professional can do this directly:
 4. PyCharm will ask where to sync files on the Pi — this creates a
    **deployment mapping**: your local `robotics-lesson` folder on your
    laptop is mirrored to a folder on the Pi.
-5. Point the interpreter at the virtual environment you already created
-   for that lesson on the Pi — `camera/venv/bin/python3` for the camera
-   lesson, for example — or let PyCharm create a fresh one and install
-   that folder's `requirements.txt` for you.
+5. Point the interpreter at the **shared course virtual environment** the
+   setup script created on the Pi: `~/robotics-lesson/.venv/bin/python`.
+   One interpreter serves every lesson — it was built with
+   `--system-site-packages`, so it sees both the apt modules and the
+   pip-only libraries the setup script installed into it.
 
 Once this is set up, PyCharm's autocomplete and error-checking reflect what's
 actually installed *on the Pi*, and you're ready to run code there.
@@ -72,19 +73,16 @@ of the window, next to the Run/Debug buttons). Clicking Run on
 remembers its own script, its own interpreter, and its own command-line
 arguments.
 
-### Different scripts, different interpreters
+### One interpreter for every script
 
-`stream_server.py` needs the packages installed in `camera/venv`;
-`rov_server.py` imports `ThrusterRig`, which needs the packages installed
-in `thrusters/venv` instead (see the [control lesson](../control/lesson.md)
-for why it reuses that venv rather than its own). Repeat the SSH
-interpreter setup from step 5 above to add a **second** remote interpreter
-pointing at `thrusters/venv/bin/python3`, then open **Run \> Edit
-Configurations...** and set each script's configuration to use the
-matching interpreter. Running the wrong one gives you a familiar error —
-`ModuleNotFoundError` — which is PyCharm telling you the selected
-interpreter doesn't have that package installed, the same as it would from
-a terminal.
+Because the whole course shares a single virtual environment
+(`~/robotics-lesson/.venv`), every script uses the **same** remote
+interpreter — the one you set up in step 5. `stream_server.py`,
+`rov_server.py`, `thruster_control.py`, and the I2C lessons all import from
+the same venv, which has every package they need. There's no second
+interpreter to add. If a script ever reports `ModuleNotFoundError`, that's
+PyCharm telling you the interpreter is missing a package — re-run `setup.sh`
+on the Pi, or `pip install` it into the active venv.
 
 To run both at once:
 

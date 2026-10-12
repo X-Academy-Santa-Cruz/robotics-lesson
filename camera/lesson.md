@@ -131,21 +131,25 @@ That's everything the two programs need:
 
 Once these are installed you can skip straight to running the programs.
 
-### Alternative: pip and a virtual environment
+### The shared virtual environment
 
-If you'd rather keep this lesson's packages separate from the rest of your
-system (or you're not on Ubuntu), use a virtual environment and `pip`
-instead. Do this once, inside the `camera` folder:
+The setup script also creates one **shared virtual environment** for the whole
+course at the repo root, `~/robotics-lesson/.venv`. It's made with
+`--system-site-packages`, so it already sees the apt modules above (OpenCV,
+Flask, click) — the camera lesson needs nothing extra pip-installed. Activate
+it before running the lessons so every lesson uses the same Python:
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+source ~/robotics-lesson/.venv/bin/activate
 ```
 
-That installs the same three modules from `requirements.txt`. With a
-virtual environment you run the programs with `venv` activated (your prompt
-shows `(venv)`); run `deactivate` when you're done.
+Your prompt shows `(.venv)` while it's active; run `deactivate` when you're
+done. (In PyCharm, point the project interpreter at
+`~/robotics-lesson/.venv/bin/python` instead — see the PyCharm lesson.)
+
+If you ever set this lesson up **off** the Pi, where those apt packages don't
+exist, `pip install -r requirements.txt` inside the active venv installs the
+pip equivalents listed in that file's comments.
 
 ## Start here: the simple version (`camera_simple.py`)
 

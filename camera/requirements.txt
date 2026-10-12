@@ -1,9 +1,18 @@
 # Python packages for the camera lesson.
-#   pip install -r requirements.txt
 #
-# opencv-python-headless is the version without GUI windows -- right for a
-# headless Raspberry Pi. On a machine where you also want cv2.imshow()
-# windows, use opencv-python instead.
-opencv-python-headless    # reads the camera and makes JPEGs (both scripts)
-flask                     # tiny web server used by camera_simple.py
-click                     # command-line options used by stream_server.py
+# On the Raspberry Pi, every package this lesson needs is provided by apt and
+# installed by the course setup script (setup.sh), so there is nothing to pip
+# install here -- just run the lessons with the shared venv active:
+#   source ~/robotics-lesson/.venv/bin/activate
+#
+# Provided by apt (installed by setup.sh):
+#   python3-opencv   OpenCV -- reads the camera and makes JPEGs (both scripts)
+#   python3-flask    Flask  -- tiny web server used by camera_simple.py
+#   python3-click    click  -- command-line options used by stream_server.py
+#
+# ---------------------------------------------------------------------------
+# If you ever set this lesson up OFF the Pi (e.g. on a laptop) without those
+# apt packages, you can pip install the equivalents instead:
+#   opencv-python-headless
+#   flask
+#   click

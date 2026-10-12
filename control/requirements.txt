@@ -1,1 +1,13 @@
-pygame
+# Python packages for the control lesson.
+#
+# Every package this lesson needs is provided by apt and installed by the
+# course setup script (setup.sh), so there is nothing to pip install here --
+# just run the lessons with the shared venv active:
+#   source ~/robotics-lesson/.venv/bin/activate
+#
+# Provided by apt (installed by setup.sh):
+#   python3-pygame   pygame -- reads the joystick
+#
+# ---------------------------------------------------------------------------
+# Off the Pi (without the apt package) you can pip install the equivalent:
+#   pygame
