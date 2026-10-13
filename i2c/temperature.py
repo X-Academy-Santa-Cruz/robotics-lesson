@@ -47,6 +47,22 @@ def print_loop(sensor, period):
 
 def plot_loop(sensor, period, window):
     """Plot the temperature live. 'window' is how many seconds to show."""
+    import os
+
+    # A live window needs a display. Over SSH or PyCharm's remote interpreter
+    # there is no display on the Pi, so the window opens but never draws.
+    if os.environ.get("DISPLAY", "") == "" and os.environ.get("WAYLAND_DISPLAY", "") == "":
+        raise SystemExit(
+            "No display found, so the live graph can't be drawn.\n"
+            "You're probably running over SSH or from PyCharm's remote "
+            "interpreter.\n"
+            "Fix it one of these ways:\n"
+            "  - run it in a terminal ON the Pi's own desktop, or\n"
+            "  - add --no-plot to just print the readings, or\n"
+            "  - turn on X11 forwarding so the window opens on your laptop\n"
+            "    (see the lesson: 'Plotting from PyCharm over SSH')."
+        )
+
     import matplotlib.pyplot as plt
 
     times, temps = [], []
