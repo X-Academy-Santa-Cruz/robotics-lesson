@@ -1,0 +1,9 @@
+# Python packages for the autonomous-driving exercise.
+#
+# This lesson reuses the thrusters lesson's ThrusterRig, so it needs the same
+# one pip-only package. The course setup script already installs it into the
+# shared venv; just run the lessons with that venv active:
+#   source ~/robotics-lesson/.venv/bin/activate
+#
+# Pip-only (no apt package):
+pi-servo-hat              # SparkFun Pi Servo HAT (PCA9685) driver, via thrusters/

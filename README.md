@@ -55,4 +55,5 @@ new to Linux or version control.
 | 1 | Streaming Video from a USB Camera | [`camera/`](camera/lesson.md) |
 | 2 | Thruster Control | [`thrusters/`](thrusters/lesson.md) |
 | 3 | Networked Control (Piloting the ROV) | [`control/`](control/lesson.md) |
-| 4 | I2C Temperature Sensor (stretch) | [`i2c/`](i2c/lesson.md) |
+| 4 | Autonomous Driving (AI-assisted project) | [`autopilot/`](autopilot/lesson.md) |
+| 5 | I2C Temperature Sensor (stretch) | [`i2c/`](i2c/lesson.md) |
