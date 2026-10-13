@@ -258,8 +258,12 @@ install_sensor_libs() {
     #   smbus2                 register-level I2C (temperature_smbus2.py)
     #   circuitpython-stts22h  high-level STTS22H driver (temperature.py)
     #   adafruit-blinka        lets CircuitPython libraries run on a Pi
+    #   adafruit-lgpio         the GPIO backend Blinka needs on the Pi 5
+    #                          (without it, "import board" fails with
+    #                           ModuleNotFoundError: No module named 'lgpio')
     # These are pip-only (no apt package), so they go into the shared venv.
-    sudo -u "$TARGET_USER" "$VENV_PIP" install smbus2 circuitpython-stts22h adafruit-blinka
+    sudo -u "$TARGET_USER" "$VENV_PIP" install \
+        smbus2 circuitpython-stts22h adafruit-blinka adafruit-lgpio
 }
 
 install_chrome() {
