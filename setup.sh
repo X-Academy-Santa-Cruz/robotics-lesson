@@ -154,9 +154,11 @@ install_python_modules() {
     #   python3-smbus   SMBus -- talking to I2C devices from Python
     #   i2c-tools       i2cdetect and friends, to find devices on the I2C bus
     #   python3-matplotlib  matplotlib -- plotting the I2C temperature sensor
+    #   python3-tk      Tk -- the GUI backend matplotlib uses to open a live
+    #                   plot window (without it, the window never draws)
     apt-get -y install \
         python3-pip python3-venv python3-opencv python3-flask python3-click \
-        python3-pygame python3-smbus i2c-tools python3-matplotlib
+        python3-pygame python3-smbus i2c-tools python3-matplotlib python3-tk
 }
 
 create_venv() {

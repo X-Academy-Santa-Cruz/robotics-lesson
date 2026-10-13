@@ -158,36 +158,45 @@ python3 temperature_smbus2.py
 python3 temperature_smbus2.py --no-plot
 ```
 
-## Plotting from PyCharm over SSH
+## The graph is empty when run from PyCharm
 
-If you run the plot from **PyCharm** (or any SSH session) the window may open
-but stay **empty and frozen** — yet the same script plots fine from a terminal
-on the Pi itself. That's expected: PyCharm runs the script **on the Pi over
-SSH**, and that SSH session has **no display**, so matplotlib can open a window
-but never draw into it. (The scripts now notice this and print a short message
-instead of leaving a dead window.)
+A common one: the live plot opens an **empty, frozen window** from PyCharm, but
+plots fine when you run the same script from a terminal. The fix depends on
+where PyCharm is running the code.
 
-Pick whichever fits what you're doing:
+### If PyCharm is running on the Pi itself
 
-- **Easiest — print instead of plot.** Over SSH you usually just want the
-  numbers. Add `--no-plot`:
+This is the usual setup, and the cause is a PyCharm setting, not the code.
+PyCharm tries to capture plots into its own **Plots** tool window (SciView),
+which only shows a *static* figure — it can't drive our live `plt.ion()` /
+`plt.pause()` loop, so the window stays blank.
+
+1. **Turn off SciView.** *Settings → Tools → Python Plots* (older versions:
+   *Tools → Python Scientific*) → **uncheck "Show plots in tool window."** Now
+   matplotlib opens a normal window the live loop can update, just like the
+   terminal. This is almost always the fix.
+2. **Use Run, not the Python Console.** The Python Console also captures plots
+   — run the file with the green ▶ Run button instead.
+3. **Make sure the Tk backend is installed:** `sudo apt-get install -y
+   python3-tk` (the setup script now does this). Without a GUI backend,
+   matplotlib can't open a window at all.
+
+### If PyCharm is running on the Pi over SSH (remote interpreter)
+
+Then the script runs on the Pi in a session with **no display**, so matplotlib
+opens a window that never draws. (The scripts notice this and print a short
+message instead of leaving a dead window.) Pick one:
+
+- **Print instead of plot** — usually all you want over SSH. Add `--no-plot`
+  (in PyCharm, put it in the run configuration's *Parameters* box):
   ```bash
   python3 temperature.py --no-plot
   ```
-  In PyCharm, put `--no-plot` in the run configuration's *Parameters* box.
-- **Run the graph on the Pi's own screen.** Open a terminal on the Pi's
-  desktop (not SSH) and run it there — this is what works from the command
-  line.
-- **Show the window on your laptop with X11 forwarding.** This makes the live
-  graph appear in front of you, run from PyCharm. Set it up once:
-  1. **On your laptop**, run an X server: macOS → install **XQuartz** and log
-     out/in; Windows → install **VcXsrv** (or use WSL); Linux already has one.
-  2. **SSH to the Pi with forwarding on** to confirm it works:
-     `ssh -X xacademy@<pi-ip>`, then `echo $DISPLAY` — it should print
-     something like `localhost:10.0`. Run `python3 temperature.py` and the
-     window should appear on your laptop.
-  3. **In PyCharm**, open the SSH interpreter's connection settings and enable
-     **X11 forwarding** for that connection. Now Run plots to your laptop too.
+- **Run it on the Pi's own screen** — a terminal on the Pi's desktop, not SSH.
+- **X11 forwarding** so the window opens on your laptop: install an X server
+  (macOS **XQuartz**, Windows **VcXsrv**), connect with `ssh -X xacademy@<pi-ip>`
+  and check `echo $DISPLAY` is set, then enable **X11 forwarding** on the SSH
+  interpreter's connection in PyCharm.
 
 ## If it doesn't work
 
@@ -198,7 +207,7 @@ Pick whichever fits what you're doing:
 | `No module named 'board'` / `'stts22h'` | You're running the system Python, not the venv. Activate it first: `source ~/robotics-lesson/.venv/bin/activate` (prompt shows `(.venv)`). |
 | `RuntimeError` / WHO_AM_I mismatch | Wrong chip or address, or a loose cable — re-check `i2cdetect -y 1`. |
 | `Permission denied` on `/dev/i2c-1` | Add your user to the i2c group: `sudo usermod -aG i2c $USER`, then log out and back in (the setup script does this). |
-| Graph window is empty / never appears (esp. from PyCharm) | No display over SSH — see "Plotting from PyCharm over SSH" above: use `--no-plot`, run on the Pi's screen, or enable X11 forwarding. |
+| Graph window is empty / never appears (esp. from PyCharm) | See "The graph is empty when run from PyCharm" above. On the Pi: turn off PyCharm's "Show plots in tool window." Over SSH: use `--no-plot`, run on the Pi's screen, or enable X11 forwarding. |
 
 ## Exercises
 
