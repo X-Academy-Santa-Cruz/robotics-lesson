@@ -177,8 +177,11 @@ create_venv() {
         info "Virtual environment already exists in $VENV_DIR."
     fi
 
-    # Keep pip itself current inside the venv (quietly; not fatal if offline).
-    sudo -u "$TARGET_USER" "$VENV_PIP" install --upgrade pip >/dev/null 2>&1 || true
+    # Make sure the venv can BUILD packages from source (the SparkFun library
+    # is installed from a git checkout, which needs a current pip + setuptools +
+    # wheel). Not fatal if we're offline and they're already present.
+    sudo -u "$TARGET_USER" "$VENV_PIP" install --upgrade pip setuptools wheel || \
+        warn "Could not upgrade pip/setuptools/wheel in the venv (continuing)."
 
     info "Lessons run with this venv active:  source $VENV_DIR/bin/activate"
 }
@@ -188,20 +191,21 @@ install_servo_hat() {
     # for the thrusters and the gripper. We build it from SparkFun's own source
     # so we get exactly their code; pip pulls its dependencies (qwiic_i2c,
     # qwiic_pca9685) automatically from the project's pyproject.toml.
+    # Install straight from SparkFun's GitHub with pip. pip builds in its own
+    # temporary directory, so this never writes build artifacts (e.g. a root-
+    # owned *.egg-info) into a folder in the user's home -- which is what broke
+    # earlier runs that had cloned by hand as root. pip pulls the dependencies
+    # (qwiic_i2c, qwiic_pca9685) from the project's pyproject.toml automatically.
+    #
+    # Clean up any leftover hand-clone from a previous run first, in case it was
+    # created as root and would otherwise shadow things or fail to rebuild.
     local dir="/home/${TARGET_USER}/PiServoHat_Py"
-
-    if [[ -d "$dir/.git" ]]; then
-        info "Updating existing clone in $dir ..."
-        sudo -u "$TARGET_USER" git -C "$dir" pull --ff-only
-    else
-        info "Cloning $SERVO_HAT_REPO into $dir ..."
-        sudo -u "$TARGET_USER" git clone "$SERVO_HAT_REPO" "$dir"
+    if [[ -e "$dir" ]]; then
+        warn "Removing old $dir from a previous run."
+        rm -rf "$dir"
     fi
 
-    # Install it into the shared venv (not the system Python), so it can't
-    # clash with any apt package. pip pulls its dependencies (qwiic_i2c,
-    # qwiic_pca9685) from the project's pyproject.toml automatically.
-    sudo -u "$TARGET_USER" "$VENV_PIP" install "$dir"
+    sudo -u "$TARGET_USER" "$VENV_PIP" install "git+${SERVO_HAT_REPO}"
 }
 
 enable_i2c() {
