@@ -4,6 +4,7 @@
 # Pip-only (no apt package):
 circuitpython-stts22h     # high-level STTS22H driver: sensor.temperature (temperature.py)
 adafruit-blinka           # lets CircuitPython libraries run on a Raspberry Pi
+adafruit-lgpio            # GPIO backend Blinka needs on the Pi 5 (fixes "No module named 'lgpio'")
 smbus2                    # register-level I2C, no sensor library (temperature_smbus2.py)
 #
 # Provided by apt (installed by setup.sh), so not listed above:

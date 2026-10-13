@@ -70,8 +70,16 @@ apt and the venv already sees it:
 
 ```bash
 source ~/robotics-lesson/.venv/bin/activate   # prompt shows (.venv)
-pip install circuitpython-stts22h adafruit-blinka
+pip install circuitpython-stts22h adafruit-blinka adafruit-lgpio
 ```
+
+`adafruit-lgpio` is the GPIO backend Blinka uses on the Pi 5. Without it,
+`import board` fails with `ModuleNotFoundError: No module named 'lgpio'`.
+
+> **Run it inside the venv.** `import board` only works with the venv active —
+> your prompt should show `(.venv)`. If you run `python3 temperature.py`
+> without activating first, it uses the system Python (which doesn't have these
+> drivers) and you'll get import errors.
 
 The whole read is three lines:
 
@@ -155,6 +163,8 @@ python3 temperature_smbus2.py --no-plot
 | Problem | Likely cause and fix |
 |---|---|
 | `i2cdetect` doesn't show `3c` | Re-seat the Qwiic cable; confirm the Servo HAT is seated and powered. |
+| `ModuleNotFoundError: No module named 'lgpio'` (from `import board`) | Blinka's Pi 5 GPIO backend is missing. With the venv active: `pip install adafruit-lgpio` (or `sudo apt-get install -y python3-lgpio`). |
+| `No module named 'board'` / `'stts22h'` | You're running the system Python, not the venv. Activate it first: `source ~/robotics-lesson/.venv/bin/activate` (prompt shows `(.venv)`). |
 | `RuntimeError` / WHO_AM_I mismatch | Wrong chip or address, or a loose cable — re-check `i2cdetect -y 1`. |
 | `Permission denied` on `/dev/i2c-1` | Add your user to the i2c group: `sudo usermod -aG i2c $USER`, then log out and back in (the setup script does this). |
 | Graph window never appears | You're probably over SSH with no display — use `--no-plot`, or run it on the Pi's own screen. |
@@ -177,6 +187,8 @@ python3 temperature_smbus2.py --no-plot
   <https://pypi.org/project/circuitpython-stts22h/>
 - **Adafruit Blinka** — runs CircuitPython libraries on a Raspberry Pi:
   <https://pypi.org/project/Adafruit-Blinka/>
+- **adafruit-lgpio** — the GPIO backend Blinka uses on the Pi 5:
+  <https://pypi.org/project/adafruit-lgpio/>
 - **smbus2** — register-level I2C (`temperature_smbus2.py`):
   <https://pypi.org/project/smbus2/>
 - **matplotlib / pyplot** — the live graph:
