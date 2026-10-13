@@ -48,6 +48,7 @@ def print_loop(sensor, period):
 def plot_loop(sensor, period, window):
     """Plot the temperature live. 'window' is how many seconds to show."""
     import os
+    import matplotlib
 
     # A live window needs a display. Over SSH or PyCharm's remote interpreter
     # there is no display on the Pi, so the window opens but never draws.
@@ -60,8 +61,18 @@ def plot_loop(sensor, period, window):
             "  - run it in a terminal ON the Pi's own desktop, or\n"
             "  - add --no-plot to just print the readings, or\n"
             "  - turn on X11 forwarding so the window opens on your laptop\n"
-            "    (see the lesson: 'Plotting from PyCharm over SSH')."
+            "    (see the lesson: 'The graph is empty when run from PyCharm')."
         )
+
+    # Open the live plot in a normal window. PyCharm would otherwise capture it
+    # into its "Plots" tool window, which can't update a live animation, so you
+    # get an empty box. Forcing the TkAgg backend (from python3-tk) before
+    # importing pyplot makes the window animate, from PyCharm or the terminal.
+    # Must be set BEFORE "import matplotlib.pyplot".
+    try:
+        matplotlib.use("TkAgg")
+    except Exception:
+        pass  # fall back to whatever backend is available
 
     import matplotlib.pyplot as plt
 

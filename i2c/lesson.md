@@ -166,20 +166,36 @@ where PyCharm is running the code.
 
 ### If PyCharm is running on the Pi itself
 
-This is the usual setup, and the cause is a PyCharm setting, not the code.
-PyCharm tries to capture plots into its own **Plots** tool window (SciView),
-which only shows a *static* figure — it can't drive our live `plt.ion()` /
-`plt.pause()` loop, so the window stays blank.
+This is the usual setup. PyCharm tries to capture plots into its own **Plots**
+tool window (SciView), which only shows a *static* figure — it can't drive our
+live `plt.ion()` / `plt.pause()` loop, so the window stays blank.
 
-1. **Turn off SciView.** *Settings → Tools → Python Plots* (older versions:
-   *Tools → Python Scientific*) → **uncheck "Show plots in tool window."** Now
-   matplotlib opens a normal window the live loop can update, just like the
-   terminal. This is almost always the fix.
-2. **Use Run, not the Python Console.** The Python Console also captures plots
-   — run the file with the green ▶ Run button instead.
-3. **Make sure the Tk backend is installed:** `sudo apt-get install -y
-   python3-tk` (the setup script now does this). Without a GUI backend,
-   matplotlib can't open a window at all.
+**The scripts already handle this for you.** They force matplotlib's `TkAgg`
+backend before plotting, which opens a normal, animating window from PyCharm
+just like the terminal. So on an up-to-date copy of the code it should simply
+work — make sure you have the latest, and that the Tk backend is installed:
+
+```bash
+sudo apt-get install -y python3-tk   # the setup script now does this too
+```
+
+If you're writing your own plotting script, do the same at the top, **before**
+`import matplotlib.pyplot`:
+
+```python
+import matplotlib
+matplotlib.use("TkAgg")
+import matplotlib.pyplot as plt
+```
+
+A couple more things that help:
+
+- **Use Run, not the Python Console** — the Console also captures plots. Run
+  the file with the green ▶ Run button.
+- You can also turn off PyCharm's plot capture in **Settings**, under the
+  Python plots / scientific settings (the exact name moves between PyCharm
+  versions — search Settings for "plot"). With the `TkAgg` line above you
+  shouldn't need to.
 
 ### If PyCharm is running on the Pi over SSH (remote interpreter)
 
