@@ -42,7 +42,8 @@ import pygame
 
 SEND_RATE_HZ = 20
 DEADZONE = 0.15
-CRUISE_CANCEL_PUSH = 0.5   # pushing a stick this far cancels cruise control
+CRUISE_CANCEL_PUSH = 0.5   # a FRESH stick push past this cancels cruise control
+CRUISE_NEUTRAL = 0.2       # sticks within this of center count as "let go"
 CRUISE_ENGAGE_SQUEEZE = 0.5  # squeeze the cruise trigger (LT) past this to engage
 
 
@@ -225,6 +226,7 @@ def main(pi_address, port, do_calibrate):
 
     buttons = {}            # last-seen state per button/trigger, for edge detection
     cruise_locked = None    # (forward, turn, vertical) being held, or None when off
+    cruise_cancel_armed = False  # True once sticks are centered, so a push cancels
 
     try:
         while True:
@@ -245,10 +247,12 @@ def main(pi_address, port, do_calibrate):
                 click.echo("Gripper opened (released object)")
 
             # --- cruise control -------------------------------------------
-            # The LEFT TRIGGER (LT) TOGGLES cruise: squeeze it once to engage
-            # and lock ALL THREE thruster speeds (forward, turn, vertical) at
-            # their current stick values; squeeze it again to turn cruise off.
-            # Moving ANY stick also cancels cruise (manual override). (A pad
+            # The LEFT TRIGGER (LT) TOGGLES cruise: push the sticks where you
+            # want, squeeze LT once to lock ALL THREE thruster speeds (forward,
+            # turn, vertical), then LET GO of the sticks - cruise keeps holding.
+            # Squeeze LT again to turn cruise off. A FRESH stick push also
+            # cancels it, but only after the sticks have first returned to
+            # center, so releasing them when you engage does NOT cancel. (A pad
             # with no spare trigger, like the flight stick, toggles with its
             # cruise button instead.)
             if profile.cruise_axis is not None:
@@ -256,20 +260,29 @@ def main(pi_address, port, do_calibrate):
             else:
                 cruise_toggle = pressed_edge(joystick, profile.cruise_button, buttons)
 
+            sticks_at_neutral = max(abs(stick_forward), abs(stick_turn),
+                                    abs(stick_vertical)) < CRUISE_NEUTRAL
+            sticks_pushed = max(abs(stick_forward), abs(stick_turn),
+                                abs(stick_vertical)) > CRUISE_CANCEL_PUSH
+
             if cruise_locked is None:
                 if cruise_toggle:
                     cruise_locked = (stick_forward, stick_turn, stick_vertical)
+                    # Don't let the sticks returning to center from THIS engage
+                    # position count as a cancel: arm the manual-override cancel
+                    # only once the sticks have gone back to neutral.
+                    cruise_cancel_armed = sticks_at_neutral
                     click.echo(
                         "Cruise ON - locked forward={:+.2f} turn={:+.2f} "
                         "vertical={:+.2f}".format(*cruise_locked)
                     )
             else:
-                stick_pushed = max(abs(stick_forward), abs(stick_turn),
-                                   abs(stick_vertical)) > CRUISE_CANCEL_PUSH
+                if sticks_at_neutral:
+                    cruise_cancel_armed = True   # you've let go; a new push can cancel
                 if cruise_toggle:
                     cruise_locked = None
                     click.echo("Cruise OFF (trigger)")
-                elif stick_pushed:
+                elif cruise_cancel_armed and sticks_pushed:
                     cruise_locked = None
                     click.echo("Cruise cancelled (manual control)")
 

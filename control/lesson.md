@@ -143,9 +143,11 @@ the whole time:
   never reopens on its own until you hit release.)
 - **Cruise control** locks **all three** thruster speeds (forward, turn, and
   vertical) at once so the ROV keeps doing exactly what it's doing, hands-free.
-  **Squeeze the left trigger to toggle cruise on; squeeze it again to toggle it
-  off.** Moving **any** stick also cancels cruise and puts you back in manual —
-  so to take back control you can just move a stick.
+  Push the sticks to the speeds you want, **squeeze the left trigger to lock
+  them in, then let go of the sticks** — cruise keeps holding. Squeeze the left
+  trigger again to turn cruise off. Letting go of the sticks when you engage
+  does **not** cancel; to take back manual control, give a stick a **fresh
+  push** (once it has returned to center), which cancels cruise.
 
 Here are the specific controls on the two supported controllers:
 
