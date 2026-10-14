@@ -11,8 +11,17 @@ Control layout (dual-stick gamepad, e.g. the F310):
                               you let go of the trigger, so you can carry an
                               object hands-free.
     RELEASE button         -> open the gripper to let the object go
+                              (F310: A button; Extreme 3D: button 2)
     CRUISE button          -> hold the current forward speed hands-free; press
                               again, or push the forward stick, to cancel
+                              (F310: B button; Extreme 3D: button 3)
+
+Specific buttons per controller (indices are the button numbers pygame
+reports; see the profiles below and use --calibrate to confirm on yours):
+    Logitech F310 (XInput, X/D switch on X): trigger = right trigger (RT);
+        RELEASE = A button (0); CRUISE = B button (1).
+    Logitech Extreme 3D Pro: trigger = the stick trigger, button 0;
+        RELEASE = button 2; CRUISE = button 3.
 
 On the Logitech Extreme 3D Pro flight stick there is only one stick plus a
 throttle slider, so that single stick drives forward/turn and the throttle
@@ -64,8 +73,8 @@ class ControllerProfile:
 
 # Logitech Extreme 3D Pro: pitch (axis 1), twist/yaw (axis 2), throttle
 # slider (axis 3). The trigger is button 0. The single stick drives
-# forward/turn; the throttle slider drives vertical. Buttons 2 and 3 toggle
-# the gripper hold and cruise control.
+# forward/turn; the throttle slider drives vertical. The trigger (button 0)
+# grips; button 2 opens the gripper to release; button 3 toggles cruise.
 PROFILE_EXTREME_3D = ControllerProfile(
     name="Logitech Extreme 3D Pro",
     axis_forward=1, axis_turn=2, axis_vertical=3,
@@ -78,7 +87,8 @@ PROFILE_EXTREME_3D = ControllerProfile(
 #   right stick X/Y = axes 3 / 4
 #   right trigger (RT) = analog axis 5, resting at -1.0, +1.0 fully squeezed
 # Control layout: LEFT stick Y -> vertical, RIGHT stick Y -> forward,
-# RIGHT stick X -> turn. Buttons: A (0) = gripper hold, B (1) = cruise.
+# RIGHT stick X -> turn. The right trigger (RT) grips; the A button (0) opens
+# the gripper to release; the B button (1) toggles cruise control.
 PROFILE_F310 = ControllerProfile(
     name="Logitech Gamepad F310",
     axis_forward=4, axis_turn=3, axis_vertical=1,

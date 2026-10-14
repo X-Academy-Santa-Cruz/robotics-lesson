@@ -146,8 +146,14 @@ the whole time:
   just push the forward stick, which cancels cruise so you're back in manual.
   Turn and vertical still work normally while cruising.
 
-The button numbers live in each `ControllerProfile` (`release_button`,
-`cruise_button`); use `--calibrate` to find them on your controller.
+Here are the specific buttons on the two supported controllers:
+
+| Controller | Grip | Release (open) | Cruise toggle |
+|---|---|---|---|
+| Logitech F310 (XInput, X/D switch on **X**) | right trigger (**RT**) | **A** button | **B** button |
+| Logitech Extreme 3D Pro | stick **trigger** | button **2** | button **3** |
+
+These are set in each `ControllerProfile` near the top of `pilot.py` (`release_button` and `cruise_button`). Button numbers can differ by operating system, so if a button does the wrong thing, run `python3 pilot.py <pi-ip-address> --calibrate`, press each button, and update the profile to match what you see.
 
 ### Finding your controller's numbers
 
