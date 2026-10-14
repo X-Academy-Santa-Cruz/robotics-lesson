@@ -89,17 +89,22 @@ leave it running at that speed indefinitely.
 parts = [float(v) for v in data.decode("utf-8").split(",")]
 forward, turn, vertical = parts[0], parts[1], parts[2]
 gripper = parts[3] if len(parts) > 3 else 0.0
+gripper_release = bool(parts[4]) if len(parts) > 4 else False
 ```
 
-Each packet is just a UTF-8 string like `"0.5,-0.2,0.0,1.0"` — four
-comma-separated numbers: forward, turn, vertical, and the gripper
-(`0.0` = closed, `1.0` = open). There's no library or framework involved;
-this is a format we made up because it's the simplest thing that works and
-is easy to read if you ever print one. An older three-number packet still
-works (the gripper just defaults to closed), and a malformed packet gets
-skipped (`except (ValueError, IndexError): continue`) rather than crashing
-the server. The server then calls both `rig.drive(...)` and
-`rig.set_gripper(gripper)`.
+Each packet is just a UTF-8 string like `"0.5,-0.2,0.0,1.0,0"` — comma-separated
+numbers: forward, turn, vertical, the gripper trigger (`0.0` = not squeezing,
+`1.0` = squeezed to grip), and a release flag (`1` = open the gripper to let go,
+`0` = normal). There's no library or framework involved; this is a format we
+made up because it's the simplest thing that works and is easy to read if you
+ever print one. Shorter packets still work (missing values default to off), and
+a malformed packet gets skipped (`except (ValueError, IndexError): continue`)
+rather than crashing the server. The server calls `rig.drive(...)`, and for the
+gripper it either opens it (on the release flag) or applies the trigger with
+`rig.apply_gripper_command(gripper)` — which grips when squeezed and keeps
+holding the grip when the trigger is let go. Cruise control needs nothing
+special on the server: the pilot just sends a steady forward value while it's
+on.
 
 ## 4. Reading `pilot.py` (runs on the laptop)
 
@@ -110,14 +115,39 @@ its name:
 
 | Controller | forward | turn | vertical | gripper (trigger) |
 |---|---|---|---|---|
-| Logitech Extreme 3D Pro ("3D Extreme") | stick pitch | stick twist | throttle slider | trigger button — hold to open |
-| Logitech F310 gamepad | left stick Y | left stick X | right stick Y | right trigger (RT) — squeeze to open |
+| Logitech F310 gamepad | **right** stick Y | **right** stick X | **left** stick Y | right trigger (RT) — squeeze to grip |
+| Logitech Extreme 3D Pro ("3D Extreme") | stick pitch | stick twist | throttle slider | trigger button — squeeze to grip |
+
+On a dual-stick gamepad the layout is: **left stick = vertical (dive and
+surface), right stick = forward/back and turn.** The flight stick has only one
+stick plus a throttle slider, so that stick drives forward/turn and the slider
+drives vertical — there's no separate left stick to use for depth.
 
 Each controller is described by a small `ControllerProfile` near the top of
-`pilot.py` (`PROFILE_EXTREME_3D` and `PROFILE_F310`). A profile just lists
-which axis is forward/turn/vertical, which ones to invert so "push up" is
-positive, and where the gripper trigger is — a **button** on the 3D Extreme,
-an analog **axis** (RT) on the F310.
+`pilot.py` (`PROFILE_EXTREME_3D` and `PROFILE_F310`). A profile lists which
+axis is forward/turn/vertical, which ones to invert so "push up" is positive,
+where the gripper trigger is (a **button** on the 3D Extreme, an analog
+**axis** (RT) on the F310), and which buttons the release and cruise features
+use.
+
+### Gripper grip-and-hold, and cruise control
+
+The gripper and cruise control are built so you don't have to hold a control
+the whole time:
+
+- **Grip and hold.** The gripper opens by default. **Squeeze the trigger to
+  close it on an object** — and it **keeps holding** that grip when you let go
+  of the trigger, so you can carry the object across the pool hands-free.
+  Squeezing again only tightens it. Press the **release button** to open the
+  gripper and let go. (Under the hood the Pi remembers the tightest grip and
+  never reopens on its own until you hit release.)
+- **Cruise control** captures your current forward speed and keeps the ROV
+  moving at it hands-free. Press the cruise button again to turn it off — or
+  just push the forward stick, which cancels cruise so you're back in manual.
+  Turn and vertical still work normally while cruising.
+
+The button numbers live in each `ControllerProfile` (`release_button`,
+`cruise_button`); use `--calibrate` to find them on your controller.
 
 ### Finding your controller's numbers
 
@@ -135,19 +165,24 @@ changes. Then adjust the matching `ControllerProfile` to match what you see.
 ### The control loop
 
 ```python
-forward = read_axis(profile.axis_forward, profile.invert_forward)
+stick_forward = read_axis(profile.axis_forward, profile.invert_forward)
 turn = read_axis(profile.axis_turn, profile.invert_turn)
 vertical = read_axis(profile.axis_vertical, profile.invert_vertical)
-gripper = read_gripper(joystick, profile)   # 0.0 closed .. 1.0 open
+gripper = read_gripper(joystick, profile)   # 0.0 = not squeezing .. 1.0 = grip
 
-message = f"{forward},{turn},{vertical},{gripper}".encode("utf-8")
-sock.sendto(message, target)
+# cruise control: send the held speed instead of the stick when it's on
+forward = cruise_speed if cruise_speed is not None else stick_forward
+# the release button opens the gripper; otherwise the grip holds on its own
+gripper_release = pressed_edge(joystick, profile.release_button, buttons)
+
+message = f"{forward},{turn},{vertical},{gripper},{int(gripper_release)}"
+sock.sendto(message.encode("utf-8"), target)
 
 time.sleep(interval)
 ```
 
 Every iteration: read the controls through the active profile, build the
-`"forward,turn,vertical,gripper"` string `rov_server.py` expects, and send
+`"forward,turn,vertical,gripper,gripper_release"` string `rov_server.py` expects, and send
 it — at a steady 20 times a second (`SEND_RATE_HZ`), **whether or not
 anything changed**. Sending continuously (instead of only when the sticks
 move) is what makes the Pi's failsafe meaningful: as long as `pilot.py` is

@@ -118,7 +118,8 @@ def gripper(ctx, action):
     rig = ThrusterRig(i2c_address=ctx.obj["address"])
     try:
         rig.arm()
-        rig.set_gripper(1.0 if action == "open" else 0.0)
+        # set_gripper: 0.0 = open, 1.0 = closed
+        rig.set_gripper(0.0 if action == "open" else 1.0)
         time.sleep(1.5)
         click.echo(f"{OK} gripper {action}")
     finally:

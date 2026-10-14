@@ -57,3 +57,9 @@ new to Linux or version control.
 | 3 | Networked Control (Piloting the ROV) | [`control/`](control/lesson.md) |
 | 4 | Autonomous Driving (AI-assisted project) | [`autopilot/`](autopilot/lesson.md) |
 | 5 | I2C Temperature Sensor (stretch) | [`i2c/`](i2c/lesson.md) |
+
+## Tools
+
+| Tool | Folder | What it does |
+|---|---|---|
+| `rovtest` | [`rovtest/`](rovtest/lesson.md) | Command-line hardware checks: arm, test a thruster by %/pulse, read the temperature sensor, scan I2C, check the camera. Use it to bring up a new ROV. |

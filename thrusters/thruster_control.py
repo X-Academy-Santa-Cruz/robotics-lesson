@@ -99,7 +99,7 @@ class ThrusterRig:
         self._set_throttle(CHANNEL_LEFT, 0.0)
         self._set_throttle(CHANNEL_RIGHT, 0.0)
         self._set_throttle(CHANNEL_VERTICAL, 0.0)
-        self.set_gripper(0.0)                      # start with the gripper closed
+        self.set_gripper(0.0)                      # start with the gripper open
         time.sleep(ARM_SECONDS)
         self._armed = True
         print("Armed.")
@@ -143,48 +143,42 @@ class ThrusterRig:
     # -- Gripper ------------------------------------------------------------
 
     def set_gripper(self, amount: float):
-        """Open/close the gripper. amount 0.0 = closed, 1.0 = fully open.
+        """Command the gripper directly. amount 0.0 = open, 1.0 = fully closed.
 
-        The gripper is a normal positional servo (not an ESC), so we command
-        it by angle between GRIPPER_CLOSED_DEG and GRIPPER_OPEN_DEG. Setting a
-        new amount clears any hold (you're actively commanding it now).
+        The gripper is a normal positional servo (not an ESC), so we command it
+        by angle: amount 0 maps to GRIPPER_OPEN_DEG, amount 1 to
+        GRIPPER_CLOSED_DEG. This also sets the remembered position that a
+        released trigger holds.
         """
         amount = max(0.0, min(1.0, amount))
         self._gripper_amount = amount
-        self._gripper_held = False
         self._write_gripper(amount)
 
     def _write_gripper(self, amount: float):
-        angle = GRIPPER_CLOSED_DEG + amount * (GRIPPER_OPEN_DEG - GRIPPER_CLOSED_DEG)
+        # amount 0 = open, 1 = closed
+        angle = GRIPPER_OPEN_DEG + amount * (GRIPPER_CLOSED_DEG - GRIPPER_OPEN_DEG)
         self._hat.move_servo_position(CHANNEL_GRIPPER, angle, SWING)
 
-    def hold_gripper(self):
-        """Latch the gripper at its current position so it keeps holding
-        without the trigger being pressed. A clamped servo keeps clamping until
-        you release_gripper(). Returns the held amount (0..1)."""
-        self._gripper_held = True
-        self._write_gripper(self._gripper_amount)
-        return self._gripper_amount
-
-    def release_gripper(self):
-        """Release a held gripper: open it and clear the hold."""
-        self._gripper_held = False
-        self.set_gripper(1.0)  # open to let go of whatever was held
-
-    def gripper_is_held(self) -> bool:
-        return self._gripper_held
+    def open_gripper(self):
+        """Let go: open the gripper fully (and forget any held grip)."""
+        self.set_gripper(0.0)
 
     def apply_gripper_command(self, trigger_amount: float):
-        """Drive the gripper from a live trigger value, respecting a hold.
+        """Drive the gripper from a live trigger value so a grip STAYS put.
 
-        While held, the trigger is ignored and the latched position is kept, so
-        the ROV can carry something without a finger on the trigger. Call
-        hold_gripper()/release_gripper() to toggle the latch.
+        trigger_amount is 0.0 (not squeezing) .. 1.0 (squeezed all the way).
+        Squeezing closes the gripper; the gripper then KEEPS that closed
+        position when you let go of the trigger, so the ROV can carry an object
+        hands-free. Squeezing further tightens it; to let go, call
+        open_gripper() (the pilot's release button).
         """
-        if self._gripper_held:
-            self._write_gripper(self._gripper_amount)
-        else:
+        trigger_amount = max(0.0, min(1.0, trigger_amount))
+        # Hold the tightest grip seen: the trigger can only close further, never
+        # reopen the gripper on release. open_gripper() resets it.
+        if trigger_amount > self._gripper_amount:
             self.set_gripper(trigger_amount)
+        else:
+            self._write_gripper(self._gripper_amount)  # keep holding
 
     # -- Stop / cleanup -----------------------------------------------------
 
@@ -208,8 +202,8 @@ def demo(rig: ThrusterRig):
         ("turn right in place", lambda: rig.drive(0.0, 0.5, 0.0)),
         ("rise", lambda: rig.drive(0.0, 0.0, 0.5)),
         ("stop", lambda: rig.drive(0.0, 0.0, 0.0)),
-        ("open gripper", lambda: rig.set_gripper(1.0)),
-        ("close gripper", lambda: rig.set_gripper(0.0)),
+        ("close gripper", lambda: rig.set_gripper(1.0)),
+        ("open gripper", lambda: rig.set_gripper(0.0)),
     ]
     for label, action in steps:
         print(label)

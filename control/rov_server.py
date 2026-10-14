@@ -7,15 +7,17 @@ Reuses the ThrusterRig built in the thrusters lesson instead of rewriting
 thruster control from scratch.
 
 Packet format (comma-separated):
-    forward,turn,vertical,gripper[,gripper_hold]
+    forward,turn,vertical,gripper[,gripper_release]
   forward/turn/vertical : -1.0 .. +1.0 thruster commands
-  gripper               : 0.0 (closed) .. 1.0 (open)
-  gripper_hold          : 1 = latch the gripper at its current position and
-                          keep holding without the trigger; 0 = normal.
+  gripper               : 0.0 (not squeezing) .. 1.0 (trigger squeezed = grip)
+  gripper_release       : 1 = open the gripper to let go; 0 = normal.
                           Optional, so older 4-value packets still work.
 
-Cruise control lives in the pilot: it just sends a steady forward value while
-cruise is on, so the server stays a simple, stateless applier.
+The gripper grips when the trigger is squeezed and keeps holding that grip
+when the trigger is released, so the ROV can carry an object hands-free; the
+release flag opens it. Cruise control lives in the pilot: it just sends a
+steady forward value while cruise is on, so the server stays a simple,
+stateless applier.
 """
 
 import socket
@@ -33,13 +35,13 @@ FAILSAFE_SECONDS = 0.5  # stop the thrusters if no packet arrives for this long
 
 
 def parse_packet(data: bytes):
-    # "forward,turn,vertical,gripper[,gripper_hold]". Older 4-value packets
-    # still work - gripper_hold defaults to off.
+    # "forward,turn,vertical,gripper[,gripper_release]". Older 4-value packets
+    # still work - gripper_release defaults to off.
     parts = [float(v) for v in data.decode("utf-8").split(",")]
     forward, turn, vertical = parts[0], parts[1], parts[2]
     gripper = parts[3] if len(parts) > 3 else 0.0
-    gripper_hold = bool(parts[4]) if len(parts) > 4 else False
-    return forward, turn, vertical, gripper, gripper_hold
+    gripper_release = bool(parts[4]) if len(parts) > 4 else False
+    return forward, turn, vertical, gripper, gripper_release
 
 
 @click.command()
@@ -55,7 +57,6 @@ def main(port, address):
     sock.settimeout(FAILSAFE_SECONDS)
 
     rig = ThrusterRig(i2c_address=int(address, 0))
-    was_holding = False
     try:
         rig.arm()
         click.echo(f"Listening for pilot commands on UDP port {port}...")
@@ -67,18 +68,17 @@ def main(port, address):
                 click.echo("No command received - stopping thrusters (failsafe)")
                 continue
             try:
-                forward, turn, vertical, gripper, hold = parse_packet(data)
+                forward, turn, vertical, gripper, release = parse_packet(data)
             except (ValueError, IndexError):
                 continue  # ignore a malformed packet, just wait for the next one
             rig.drive(forward, turn, vertical)
-            # Latch or unlatch the gripper hold as the pilot requests, then let
-            # the rig apply the trigger value (ignored while held).
-            if hold and not was_holding:
-                rig.hold_gripper()
-            elif not hold and was_holding:
-                rig.release_gripper()
-            was_holding = hold
-            rig.apply_gripper_command(gripper)
+            # The gripper grips when the trigger is squeezed and HOLDS that grip
+            # when the trigger is released, so the ROV can carry something. The
+            # release button opens it to let go.
+            if release:
+                rig.open_gripper()
+            else:
+                rig.apply_gripper_command(gripper)
     except KeyboardInterrupt:
         pass
     finally:
