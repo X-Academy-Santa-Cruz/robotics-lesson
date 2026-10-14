@@ -28,10 +28,10 @@ from pathlib import Path
 import click
 
 # Reuse the lesson code: ThrusterRig (thrusters/) and the smbus2 sensor helpers
-# (i2c/). Add both sibling folders to the import path.
+# (sensors/). Add both sibling folders to the import path.
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "thrusters"))
-sys.path.insert(0, str(ROOT / "i2c"))
+sys.path.insert(0, str(ROOT / "sensors"))
 
 from thruster_control import (  # noqa: E402
     ThrusterRig, THRUSTER_CHANNELS, MIN_PULSE_MS, MAX_PULSE_MS,

@@ -80,12 +80,16 @@ class ThrusterRig:
         # Match the library's pulse range to what the ESCs expect.
         self._hat.set_pulse_time(MIN_PULSE_MS, MAX_PULSE_MS)
         self._armed = False
-        # Gripper state: the last angle we commanded, and whether it's latched
-        # (held) so it keeps that position without the trigger being held.
+        # Gripper state: how closed it is (0 = open, 1 = fully closed).
         self._gripper_amount = 0.0
-        self._gripper_held = False
+        # Last throttle commanded on each thruster channel (-1..+1), so the
+        # dashboard can report per-channel PWM, power %, and direction.
+        self._throttles = {
+            CHANNEL_LEFT: 0.0, CHANNEL_RIGHT: 0.0, CHANNEL_VERTICAL: 0.0,
+        }
 
     def _set_throttle(self, channel: int, throttle: float):
+        self._throttles[channel] = throttle
         self._hat.move_servo_position(channel, _throttle_to_position(throttle), SWING)
 
     def arm(self):
@@ -193,6 +197,45 @@ class ThrusterRig:
             self.stop()
         # Cut PWM output so the ESCs see no signal once we're done.
         self._hat.sleep()
+
+    # -- Telemetry ----------------------------------------------------------
+
+    def telemetry(self):
+        """A snapshot of what the rig is doing, for the dashboard.
+
+        Per channel: the pulse width in ms, power as a percent (0-100), and a
+        direction word. Plus the gripper's closed amount. (Temperature is added
+        by the server, which owns the sensor.)
+        """
+        names = {CHANNEL_LEFT: "left", CHANNEL_RIGHT: "right",
+                 CHANNEL_VERTICAL: "vertical"}
+        # Each thruster's direction word depends on which way it drives.
+        fwd_rev = {CHANNEL_LEFT: ("forward", "reverse"),
+                   CHANNEL_RIGHT: ("forward", "reverse"),
+                   CHANNEL_VERTICAL: ("up", "down")}
+        channels = {}
+        for ch, name in names.items():
+            thr = self._throttles[ch]
+            pos, neg = fwd_rev[ch]
+            direction = "stopped" if abs(thr) < 0.02 else (pos if thr > 0 else neg)
+            channels[name] = {
+                "channel": ch,
+                "throttle": round(thr, 3),            # -1..+1
+                "percent": round(abs(thr) * 100.0, 1),  # 0..100
+                "direction": direction,
+                "pulse_ms": round(throttle_to_pulse_ms(thr), 3),
+            }
+        return {
+            "armed": self._armed,
+            "channels": channels,
+            "gripper_closed": round(self._gripper_amount, 3),  # 0 open .. 1 closed
+        }
+
+
+def throttle_to_pulse_ms(throttle: float) -> float:
+    """Convert a throttle (-1..+1) to the pulse width in ms the ESC gets."""
+    throttle = max(-1.0, min(1.0, throttle))
+    return MIN_PULSE_MS + (throttle + 1.0) / 2.0 * (MAX_PULSE_MS - MIN_PULSE_MS)
 
 
 def demo(rig: ThrusterRig):

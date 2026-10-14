@@ -56,7 +56,8 @@ new to Linux or version control.
 | 2 | Thruster Control | [`thrusters/`](thrusters/lesson.md) |
 | 3 | Networked Control (Piloting the ROV) | [`control/`](control/lesson.md) |
 | 4 | Autonomous Driving (AI-assisted project) | [`autopilot/`](autopilot/lesson.md) |
-| 5 | I2C Temperature Sensor (stretch) | [`i2c/`](i2c/lesson.md) |
+| 5 | I2C Temperature Sensor (stretch) | [`sensors/`](sensors/lesson.md) |
+| 6 | ROV Dashboard (advanced web app) | [`dashboard/`](dashboard/lesson.md) |
 
 ## Tools
 

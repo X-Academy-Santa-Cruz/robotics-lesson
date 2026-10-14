@@ -1,0 +1,17 @@
+# Python packages for the ROV dashboard web app.
+#
+# The course setup script installs all of these (Flask and click via apt),
+# so just run with the shared venv active:
+#   source ~/robotics-lesson/.venv/bin/activate
+#
+# Provided by apt (installed by setup.sh):
+#   python3-flask    Flask  -- serves the dashboard web page
+#   python3-click    click  -- command-line options
+#
+# The dashboard reads telemetry over a UDP socket (Python standard library)
+# and embeds the camera lesson's MJPEG stream by URL, so it needs no camera
+# or thruster libraries of its own.
+#
+# Off the Pi (without the apt packages) you can pip install the equivalents:
+#   flask
+#   click

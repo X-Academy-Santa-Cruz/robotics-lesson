@@ -286,16 +286,19 @@ def main(pi_address, port, do_calibrate):
                     cruise_locked = None
                     click.echo("Cruise cancelled (manual control)")
 
-            if cruise_locked is not None:
+            cruise_on = cruise_locked is not None
+            if cruise_on:
                 forward, turn, vertical = cruise_locked
             else:
                 forward, turn, vertical = stick_forward, stick_turn, stick_vertical
 
-            message = f"{forward},{turn},{vertical},{gripper},{int(gripper_release)}"
+            # 6th field: cruise_on, so the server (and the dashboard) can show it.
+            message = (f"{forward},{turn},{vertical},{gripper},"
+                       f"{int(gripper_release)},{int(cruise_on)}")
             sock.sendto(message.encode("utf-8"), target)
             time.sleep(interval)
     except KeyboardInterrupt:
-        sock.sendto(b"0,0,0,0,0", target)  # explicit stop on the way out
+        sock.sendto(b"0,0,0,0,0,0", target)  # explicit stop on the way out
     finally:
         sock.close()
 

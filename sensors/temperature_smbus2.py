@@ -12,7 +12,7 @@
 # works: write/read a few registers by number.
 #
 # Run it on the Pi:
-#     cd robotics-lesson/i2c
+#     cd robotics-lesson/sensors
 #     python3 temperature_smbus2.py
 # Press Ctrl+C to stop. Add --no-plot to just print readings (e.g. over SSH
 # with no screen).

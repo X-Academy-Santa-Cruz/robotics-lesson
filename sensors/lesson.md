@@ -94,7 +94,7 @@ Run it on the Pi (with the venv active):
 
 ```bash
 source ~/robotics-lesson/.venv/bin/activate
-cd ~/robotics-lesson/i2c
+cd ~/robotics-lesson/sensors
 python3 temperature.py            # live graph
 python3 temperature.py --no-plot  # just print readings (good over SSH)
 ```
@@ -153,7 +153,7 @@ and plots the readings. Run it the same way:
 
 ```bash
 source ~/robotics-lesson/.venv/bin/activate
-cd ~/robotics-lesson/i2c
+cd ~/robotics-lesson/sensors
 python3 temperature_smbus2.py
 python3 temperature_smbus2.py --no-plot
 ```
