@@ -141,19 +141,20 @@ the whole time:
   Squeezing again only tightens it. Press the **release button** to open the
   gripper and let go. (Under the hood the Pi remembers the tightest grip and
   never reopens on its own until you hit release.)
-- **Cruise control** captures your current forward speed and keeps the ROV
-  moving at it hands-free. Press the cruise button again to turn it off — or
-  just push the forward stick, which cancels cruise so you're back in manual.
-  Turn and vertical still work normally while cruising.
+- **Cruise control** locks **all three** thruster speeds (forward, turn, and
+  vertical) at once so the ROV keeps doing exactly what it's doing, hands-free.
+  **Squeeze the left trigger to toggle cruise on; squeeze it again to toggle it
+  off.** Moving **any** stick also cancels cruise and puts you back in manual —
+  so to take back control you can just move a stick.
 
-Here are the specific buttons on the two supported controllers:
+Here are the specific controls on the two supported controllers:
 
 | Controller | Grip | Release (open) | Cruise toggle |
 |---|---|---|---|
-| Logitech F310 (XInput, X/D switch on **X**) | right trigger (**RT**) | **A** button | **B** button |
-| Logitech Extreme 3D Pro | stick **trigger** | button **2** | button **3** |
+| Logitech F310 (XInput, X/D switch on **X**) | right trigger (**RT**) | **A** button | **left trigger (LT)** |
+| Logitech Extreme 3D Pro | stick **trigger** | button **2** | button **3** (no left trigger) |
 
-These are set in each `ControllerProfile` near the top of `pilot.py` (`release_button` and `cruise_button`). Button numbers can differ by operating system, so if a button does the wrong thing, run `python3 pilot.py <pi-ip-address> --calibrate`, press each button, and update the profile to match what you see.
+These are set in each `ControllerProfile` near the top of `pilot.py` (`release_button`, and `cruise_axis` / `cruise_button` for cruise). Axis and button numbers can differ by operating system, so if a control does the wrong thing, run `python3 pilot.py <pi-ip-address> --calibrate`, work each control, and update the profile to match what you see.
 
 ### Finding your controller's numbers
 
@@ -172,12 +173,16 @@ changes. Then adjust the matching `ControllerProfile` to match what you see.
 
 ```python
 stick_forward = read_axis(profile.axis_forward, profile.invert_forward)
-turn = read_axis(profile.axis_turn, profile.invert_turn)
-vertical = read_axis(profile.axis_vertical, profile.invert_vertical)
+stick_turn = read_axis(profile.axis_turn, profile.invert_turn)
+stick_vertical = read_axis(profile.axis_vertical, profile.invert_vertical)
 gripper = read_gripper(joystick, profile)   # 0.0 = not squeezing .. 1.0 = grip
 
-# cruise control: send the held speed instead of the stick when it's on
-forward = cruise_speed if cruise_speed is not None else stick_forward
+# cruise control: the left trigger toggles it. While on, cruise_locked holds
+# all three speeds; moving any stick cancels it. While off, use the sticks.
+if cruise_locked is not None:
+    forward, turn, vertical = cruise_locked
+else:
+    forward, turn, vertical = stick_forward, stick_turn, stick_vertical
 # the release button opens the gripper; otherwise the grip holds on its own
 gripper_release = pressed_edge(joystick, profile.release_button, buttons)
 
