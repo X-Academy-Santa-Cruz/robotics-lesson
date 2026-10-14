@@ -64,3 +64,4 @@ new to Linux or version control.
 | Tool | Folder | What it does |
 |---|---|---|
 | `rovtest` | [`rovtest/`](rovtest/lesson.md) | Command-line hardware checks: arm, test a thruster by %/pulse, read the temperature sensor, scan I2C, check the camera. Use it to bring up a new ROV. |
+| `start_rov.sh` | [`start_rov.sh`](start_rov.sh) | One-command startup: kills old processes, then starts the camera, thruster server, pilot, and dashboard in the background on the Pi (all localhost) and opens the dashboard in a browser. `./start_rov.sh stop` stops them. |
