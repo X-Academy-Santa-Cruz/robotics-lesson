@@ -1,0 +1,16 @@
+# Python packages for the rovtest hardware-check tool.
+#
+# rovtest reuses the thrusters and i2c lesson code, so it needs the same
+# packages those do. The course setup script installs all of them (click,
+# OpenCV and smbus via apt; pi-servo-hat into the shared venv). Just run with
+# the venv active:
+#   source ~/robotics-lesson/.venv/bin/activate
+#
+# Pip-only (no apt package):
+pi-servo-hat              # SparkFun Pi Servo HAT (PCA9685) driver, via thrusters/
+smbus2                    # register-level I2C for the temperature check, via i2c/
+#
+# Provided by apt (installed by setup.sh), so not listed above:
+#   python3-click    click  -- the command-line interface
+#   python3-opencv   OpenCV -- the camera check
+#   i2c-tools        i2cdetect -- the full I2C bus scan
