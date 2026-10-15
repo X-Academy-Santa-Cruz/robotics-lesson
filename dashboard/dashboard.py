@@ -63,11 +63,20 @@ PAGE = """<!doctype html>
 <title>ROV Dashboard</title>
 <style>
   :root { color-scheme: dark; }
+  /* zoom: 0.8 shrinks the whole dashboard to 80% of its normal size. */
   body { margin: 0; background: #0e2439; color: #eef4f3;
-         font-family: 'IBM Plex Sans', Arial, sans-serif; }
-  header { padding: 14px 24px; background: #0b1c2e; border-bottom: 1px solid #1f4a66; }
+         font-family: 'IBM Plex Sans', Arial, sans-serif; zoom: 0.8; }
+  header { padding: 14px 24px; background: #0b1c2e; border-bottom: 1px solid #1f4a66;
+           display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
   header h1 { margin: 0; font-size: 20px; letter-spacing: 1px; }
   header span { color: #6fd3cf; font-weight: 600; }
+  header .ip { color: #8fb3b0; font-size: 14px; }
+  header .ip b { color: #eef4f3; font-weight: 600; }
+  .help { font-size: 13px; color: #bfd8d5; line-height: 1.5; }
+  .help b { color: #eef4f3; }
+  .help .key { display: inline-block; background: #0b1c2e; border: 1px solid #1f4a66;
+               border-radius: 6px; padding: 1px 7px; font-weight: 600; color: #6fd3cf; }
+  .hint { font-size: 12px; color: #8fb3b0; margin-top: 4px; }
   .wrap { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; padding: 20px;
           max-width: 1400px; margin: 0 auto; }
   @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
@@ -98,7 +107,10 @@ PAGE = """<!doctype html>
 </style>
 </head>
 <body>
-<header><h1>X Academy <span>ROV Dashboard</span></h1></header>
+<header>
+  <h1>X Academy <span>ROV Dashboard</span></h1>
+  <div class="ip">Pi address: <b id="piaddr">--</b></div>
+</header>
 <div class="wrap">
   <div class="card">
     <h2>Camera</h2>
@@ -111,7 +123,8 @@ PAGE = """<!doctype html>
       <div class="stat"><div class="label">Water temp</div>
         <div class="value" id="temp">--</div></div>
       <div class="stat"><div class="label">Armed</div>
-        <div class="value" id="armed">--</div></div>
+        <div class="value" id="armed">--</div>
+        <div class="hint">Thrusters have seen neutral and will accept throttle. Not armed = they ignore commands (a safety step at startup).</div></div>
     </div>
     <div class="badges" style="margin-top:16px">
       <span class="pill off" id="cruise">Cruise off</span>
@@ -140,9 +153,41 @@ PAGE = """<!doctype html>
     <h2>Thruster channels</h2>
     <table>
       <thead><tr><th>Thruster</th><th>Channel</th><th>Direction</th>
-        <th>Power</th><th>PWM pulse</th></tr></thead>
+        <th>Power</th><th>PWM (&micro;s)</th></tr></thead>
       <tbody id="channels"></tbody>
     </table>
+  </div>
+
+  <div class="card" style="grid-column: 1 / -1;">
+    <h2>Controls (Logitech F310 gamepad)</h2>
+    <div class="stat-row">
+      <div class="stat" style="min-width:260px">
+        <div class="label">Driving</div>
+        <div class="help">
+          <b>Left stick — up/down:</b> vertical thruster (push up = surface, down = dive).<br>
+          <b>Right stick — up/down:</b> forward / reverse (both horizontal thrusters together).<br>
+          <b>Right stick — left/right:</b> turn (the left and right thrusters drive opposite ways).
+        </div>
+      </div>
+      <div class="stat" style="min-width:260px">
+        <div class="label">Gripper</div>
+        <div class="help">
+          <b>Right trigger (RT):</b> squeeze to close the gripper on an object. It
+          <b>keeps holding</b> once you let go of the trigger, so you can carry
+          things hands-free; squeezing again only tightens.<br>
+          <b>A button:</b> opens the gripper to release / let go.
+        </div>
+      </div>
+      <div class="stat" style="min-width:260px">
+        <div class="label">Cruise control</div>
+        <div class="help">
+          <b>Left trigger (LT):</b> squeeze once to lock all three thruster speeds
+          (forward, turn, vertical) so the ROV holds course hands-free; squeeze
+          again to turn cruise off. <b>Moving any stick</b> also cancels cruise
+          and returns to manual control.
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -164,6 +209,9 @@ let lastTime = null, staleTicks = 0;
   document.getElementById("camera").src = url;
 })();
 
+// Show the Pi's address - the host you opened the dashboard on IS the Pi.
+document.getElementById("piaddr").textContent = window.location.hostname;
+
 async function tick() {
   try {
     const r = await fetch("/telemetry", {cache: "no-store"});
@@ -174,8 +222,10 @@ async function tick() {
 }
 
 function render(t) {
+  const tc = t.temperature_c;
   document.getElementById("temp").textContent =
-    (t.temperature_c == null) ? "n/a" : t.temperature_c.toFixed(1) + " °C";
+    (tc == null) ? "n/a"
+    : tc.toFixed(1) + " °C / " + (tc * 9/5 + 32).toFixed(1) + " °F";
   document.getElementById("armed").textContent = t.armed ? "Yes" : "No";
 
   const cruise = document.getElementById("cruise");
@@ -194,7 +244,7 @@ function render(t) {
     const c = ch[n]; if (!c) return "";
     return `<tr><td>${n}</td><td>${c.channel}</td><td>${c.direction}</td>
       <td>${c.percent.toFixed(0)}%<div class="bar"><div style="width:${c.percent}%"></div></div></td>
-      <td>${c.pulse_ms.toFixed(3)} ms</td></tr>`;
+      <td>${Math.round(c.pulse_ms * 1000)} µs</td></tr>`;
   }).join("");
   document.getElementById("channels").innerHTML = rows;
 
