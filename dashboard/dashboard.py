@@ -158,8 +158,9 @@ let lastTime = null, staleTicks = 0;
 (function () {
   const override = {{ camera_override | tojson }};
   const port = {{ camera_port | tojson }};
+  const path = {{ camera_path | tojson }};   // stream_server.py serves /stream.mjpg
   const url = override || (window.location.protocol + "//" +
-              window.location.hostname + ":" + port + "/video");
+              window.location.hostname + ":" + port + path);
   document.getElementById("camera").src = url;
 })();
 
@@ -234,11 +235,15 @@ tick();
               help="Port the camera stream (stream_server.py) runs on. The "
                    "dashboard builds the video URL from this and whatever host "
                    "the browser used to open the dashboard.")
+@click.option("--camera-path", default="/stream.mjpg", show_default=True,
+              help="Path the camera server serves the MJPEG stream at. "
+                   "stream_server.py uses /stream.mjpg; camera_simple.py uses "
+                   "/video.")
 @click.option("--camera-url", default=None,
               help="Full camera MJPEG URL, ONLY if the camera is on a different "
                    "host than the dashboard. Normally leave this unset so the "
                    "video follows the dashboard's own address.")
-def main(port, telemetry_port, camera_port, camera_url):
+def main(port, telemetry_port, camera_port, camera_path, camera_url):
     """Serve the ROV dashboard and listen for telemetry."""
     listener = threading.Thread(target=telemetry_listener,
                                 args=(telemetry_port,), daemon=True)
@@ -249,14 +254,15 @@ def main(port, telemetry_port, camera_port, camera_url):
     @app.route("/")
     def index():
         return render_template_string(PAGE, camera_override=camera_url,
-                                      camera_port=camera_port)
+                                      camera_port=camera_port,
+                                      camera_path=camera_path)
 
     @app.route("/telemetry")
     def telemetry():
         with _lock:
             return jsonify(_latest["telemetry"])
 
-    where = camera_url or f"<dashboard host>:{camera_port}/video"
+    where = camera_url or f"<dashboard host>:{camera_port}{camera_path}"
     click.echo(f"Dashboard on http://0.0.0.0:{port}/  "
                f"(telemetry UDP :{telemetry_port}, camera {where})")
     app.run(host="0.0.0.0", port=port, threaded=True)

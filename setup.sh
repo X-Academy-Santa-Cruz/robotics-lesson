@@ -136,7 +136,9 @@ update_packages() {
 
 install_apt_packages() {
     # curl and ca-certificates are needed by the Chrome and PyCharm steps.
-    apt-get -y install emacs git openssh-server curl ca-certificates
+    # net-tools provides netstat/ifconfig, handy for checking which ports
+    # the ROV programs are listening on (e.g. netstat -pant | grep 8000).
+    apt-get -y install emacs git openssh-server curl ca-certificates net-tools
 
     # Start the SSH server now and on every boot.
     systemctl enable --now ssh
