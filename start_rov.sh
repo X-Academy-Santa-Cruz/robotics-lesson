@@ -107,12 +107,18 @@ echo "Starting the ROV stack (all on localhost)..."
 # 1. Camera stream first, so the dashboard's video has something to show.
 start_bg camera "$CAMERA"
 
+# Give the camera a moment to open the device and start serving on :8000
+# before anything tries to display its stream.
+sleep 3
+
 # 2. Thruster server: listens for pilot commands, streams telemetry to the
 #    dashboard. Both stay on this machine, so localhost.
 start_bg rov_server "$ROV_SERVER" --telemetry-host 127.0.0.1
 
-# 3. Dashboard: embed the local camera stream; it listens for telemetry.
-start_bg dashboard "$DASHBOARD" --camera-url "http://localhost:8000/video"
+# 3. Dashboard: it listens for telemetry and serves the page. The page builds
+#    the camera URL from whatever host the browser used to reach the dashboard
+#    (same Pi), so no --camera-url is needed here.
+start_bg dashboard "$DASHBOARD"
 
 # 4. Pilot: reads the joystick/controller plugged into THIS computer and sends
 #    commands to the local rov_server. (If your controller is on the surface

@@ -61,7 +61,7 @@ camera stream:
 
 ```bash
 cd ~/robotics-lesson/dashboard
-python3 dashboard.py --camera-url http://<pi-ip>:8000/video
+python3 dashboard.py
 ```
 
 Open **http://<dashboard-machine-ip>:8080/** in a browser. Pilot with
@@ -73,7 +73,8 @@ Open **http://<dashboard-machine-ip>:8080/** in a browser. Pilot with
 |---|---|---|
 | `rov_server.py` | `--telemetry-host` | where to send telemetry (the dashboard's IP) |
 | `rov_server.py` | `--telemetry-port` | telemetry UDP port (default 5006) |
-| `dashboard.py` | `--camera-url` | the camera MJPEG stream URL |
+| `dashboard.py` | `--camera-port` | port the camera stream uses (default 8000); the video URL is built from this and the host you opened the dashboard on |
+| `dashboard.py` | `--camera-url` | only if the camera is on a different host than the dashboard; a full MJPEG URL |
 | `dashboard.py` | `--telemetry-port` | UDP port to receive telemetry on (match the server) |
 | `dashboard.py` | `--port` | web port for the dashboard page (default 8080) |
 
@@ -93,7 +94,7 @@ Open **http://<dashboard-machine-ip>:8080/** in a browser. Pilot with
 | Problem | Likely cause and fix |
 |---|---|
 | Page loads but gauges say `--` | No telemetry arriving — check `rov_server.py`'s `--telemetry-host` is this machine's IP and the ports match. |
-| Video box is blank | Wrong `--camera-url`, or `stream_server.py` isn't running — open that URL directly in a browser to check. |
+| Video box is blank | `stream_server.py` isn't running, or you opened the dashboard by a host that can't reach the camera — open `http://<same-host>:8000/video` directly in a browser to check. The video follows the dashboard's host automatically; only use `--camera-url` if the camera is on another machine. |
 | `Address already in use` | Another program has the port — stop it, or pass a different `--port` / `--telemetry-port`. |
 | Temperature shows `n/a` | No sensor on the bus (that's fine) — the dashboard just omits it. |
 

@@ -17,12 +17,15 @@ that a few times a second and redraws. The video is the camera lesson's own
 stream, embedded by URL - so the camera is opened once, by stream_server.py,
 not twice.
 
-Run it on the Pi (or the laptop) with the shared venv active:
+Run it on the Pi with the shared venv active:
     source ~/robotics-lesson/.venv/bin/activate
     cd ~/robotics-lesson/dashboard
-    python3 dashboard.py --camera-url http://<pi-ip>:8000/video
+    python3 dashboard.py
 
-Then open http://<this-machine-ip>:8080/ in a browser.
+Then open http://<pi-ip>:8080/ in a browser. The video follows whatever host
+you used to open the dashboard, so no camera URL is needed - the stream and the
+dashboard are on the same Pi. (Only pass --camera-url if the camera lives on a
+different host.)
 """
 
 import json
@@ -99,7 +102,7 @@ PAGE = """<!doctype html>
 <div class="wrap">
   <div class="card">
     <h2>Camera</h2>
-    <img class="video" src="{{ camera_url }}" alt="ROV camera stream">
+    <img class="video" id="camera" alt="ROV camera stream">
   </div>
 
   <div class="card">
@@ -146,6 +149,19 @@ PAGE = """<!doctype html>
 <script>
 const names = ["left", "right", "vertical"];
 let lastTime = null, staleTicks = 0;
+
+// Point the <img> at the camera stream. Build the URL FROM THE HOSTNAME THE
+// BROWSER USED to open this dashboard - so when you open the dashboard at the
+// Pi's address, the video loads from that same Pi. (A server-side "localhost"
+// would wrongly mean the viewer's own laptop.) An explicit CAMERA_URL override
+// passed by the server wins, for the rare case the camera is on another host.
+(function () {
+  const override = {{ camera_override | tojson }};
+  const port = {{ camera_port | tojson }};
+  const url = override || (window.location.protocol + "//" +
+              window.location.hostname + ":" + port + "/video");
+  document.getElementById("camera").src = url;
+})();
 
 async function tick() {
   try {
@@ -214,10 +230,15 @@ tick();
               help="Port to serve the dashboard web page on.")
 @click.option("--telemetry-port", default=5006, show_default=True,
               help="UDP port to receive telemetry from rov_server on.")
-@click.option("--camera-url", default="http://localhost:8000/video",
-              show_default=True,
-              help="URL of the camera MJPEG stream (from stream_server.py).")
-def main(port, telemetry_port, camera_url):
+@click.option("--camera-port", default=8000, show_default=True,
+              help="Port the camera stream (stream_server.py) runs on. The "
+                   "dashboard builds the video URL from this and whatever host "
+                   "the browser used to open the dashboard.")
+@click.option("--camera-url", default=None,
+              help="Full camera MJPEG URL, ONLY if the camera is on a different "
+                   "host than the dashboard. Normally leave this unset so the "
+                   "video follows the dashboard's own address.")
+def main(port, telemetry_port, camera_port, camera_url):
     """Serve the ROV dashboard and listen for telemetry."""
     listener = threading.Thread(target=telemetry_listener,
                                 args=(telemetry_port,), daemon=True)
@@ -227,15 +248,17 @@ def main(port, telemetry_port, camera_url):
 
     @app.route("/")
     def index():
-        return render_template_string(PAGE, camera_url=camera_url)
+        return render_template_string(PAGE, camera_override=camera_url,
+                                      camera_port=camera_port)
 
     @app.route("/telemetry")
     def telemetry():
         with _lock:
             return jsonify(_latest["telemetry"])
 
+    where = camera_url or f"<dashboard host>:{camera_port}/video"
     click.echo(f"Dashboard on http://0.0.0.0:{port}/  "
-               f"(telemetry UDP :{telemetry_port}, camera {camera_url})")
+               f"(telemetry UDP :{telemetry_port}, camera {where})")
     app.run(host="0.0.0.0", port=port, threaded=True)
 
 
