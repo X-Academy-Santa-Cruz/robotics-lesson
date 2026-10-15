@@ -76,15 +76,13 @@ PAGE = """<!doctype html>
   .help .key { display: inline-block; background: #0b1c2e; border: 1px solid #1f4a66;
                border-radius: 6px; padding: 1px 7px; font-weight: 600; color: #6fd3cf; }
   .hint { font-size: 15px; color: #8fb3b0; margin-top: 6px; line-height: 1.45; }
-  /* Top row: camera (wide) + status/dial. */
-  .wrap { display: grid; grid-template-columns: 2fr 1fr; gap: 22px;
-          padding: 22px; max-width: 1800px; margin: 0 auto; }
-  /* Second row: controls (left) and thruster channels (right), full width. */
-  .row2 { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr;
-          gap: 22px; }
-  @media (max-width: 1000px) {
+  /* Top row: controls (left) | camera (wide center) | channels (right). */
+  .wrap { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 22px;
+          padding: 22px; max-width: 2000px; margin: 0 auto; align-items: start; }
+  /* Second row: the status + heading dial, full width under the three. */
+  .row2 { grid-column: 1 / -1; }
+  @media (max-width: 1100px) {
     .wrap { grid-template-columns: 1fr; }
-    .row2 { grid-template-columns: 1fr; }
   }
   .card { background: #13324a; border: 1px solid #1f4a66; border-radius: 14px;
           padding: 22px; }
@@ -118,12 +116,57 @@ PAGE = """<!doctype html>
   <div class="ip">Pi address: <b id="piaddr">--</b></div>
 </header>
 <div class="wrap">
+  <!-- LEFT of the video: controls -->
+  <div class="card">
+    <h2>Controls (Logitech F310 gamepad)</h2>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="stat">
+        <div class="label">Driving</div>
+        <div class="help">
+          <b>Left stick — up/down:</b> vertical thruster (push up = surface, down = dive).<br>
+          <b>Right stick — up/down:</b> forward / reverse (both horizontal thrusters together).<br>
+          <b>Right stick — left/right:</b> turn (the left and right thrusters drive opposite ways).
+        </div>
+      </div>
+      <div class="stat">
+        <div class="label">Gripper</div>
+        <div class="help">
+          <b>Right trigger (RT):</b> squeeze to close the gripper on an object. It
+          <b>keeps holding</b> once you let go of the trigger, so you can carry
+          things hands-free; squeezing again only tightens.<br>
+          <b>A button:</b> opens the gripper to release / let go.
+        </div>
+      </div>
+      <div class="stat">
+        <div class="label">Cruise control</div>
+        <div class="help">
+          <b>Left trigger (LT):</b> squeeze once to lock all three thruster speeds
+          (forward, turn, vertical) so the ROV holds course hands-free; squeeze
+          again to turn cruise off. <b>Moving any stick</b> also cancels cruise
+          and returns to manual control.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: the camera video -->
   <div class="card">
     <h2>Camera</h2>
     <img class="video" id="camera" alt="ROV camera stream">
   </div>
 
+  <!-- RIGHT of the video: thruster channels -->
   <div class="card">
+    <h2>Thruster channels</h2>
+    <table>
+      <thead><tr><th>Thruster</th><th>Ch</th><th>Direction</th>
+        <th>Power</th><th>PWM (&micro;s)</th></tr></thead>
+      <tbody id="channels"></tbody>
+    </table>
+  </div>
+
+  <!-- Full-width row under the three: status + heading dial -->
+  <div class="row2 card">
     <h2>Status</h2>
     <div class="stat-row">
       <div class="stat"><div class="label">Water temp</div>
@@ -131,70 +174,25 @@ PAGE = """<!doctype html>
       <div class="stat"><div class="label">Armed</div>
         <div class="value" id="armed">--</div>
         <div class="hint">Thrusters have seen neutral and will accept throttle. Not armed = they ignore commands (a safety step at startup).</div></div>
+      <div class="stat"><div class="label">Vertical thruster</div>
+        <div class="value" id="vert">--</div></div>
+      <div class="stat" style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center">
+        <div class="label" style="align-self:flex-start">Heading dial</div>
+        <svg id="dial" width="200" height="200" viewBox="0 0 220 220">
+          <circle cx="110" cy="110" r="96" fill="#0e2439" stroke="#1f4a66" stroke-width="2"/>
+          <circle cx="110" cy="110" r="4" fill="#6fd3cf"/>
+          <line id="driveArrow" x1="110" y1="110" x2="110" y2="30"
+                stroke="#6fd3cf" stroke-width="6" stroke-linecap="round"/>
+          <text x="110" y="22" text-anchor="middle" font-size="16">FWD</text>
+          <text x="110" y="214" text-anchor="middle" font-size="16">REV</text>
+          <text x="16" y="116" font-size="16">L</text>
+          <text x="198" y="116" font-size="16">R</text>
+        </svg>
+      </div>
     </div>
     <div class="badges" style="margin-top:16px">
       <span class="pill off" id="cruise">Cruise off</span>
       <span class="pill off" id="grip">Gripper open</span>
-    </div>
-    <h2 style="margin-top:22px">Heading dial</h2>
-    <div style="display:flex;justify-content:center">
-      <svg id="dial" width="220" height="220" viewBox="0 0 220 220">
-        <circle cx="110" cy="110" r="96" fill="#0e2439" stroke="#1f4a66" stroke-width="2"/>
-        <circle cx="110" cy="110" r="4" fill="#6fd3cf"/>
-        <!-- forward/back arrow (drive) -->
-        <line id="driveArrow" x1="110" y1="110" x2="110" y2="30"
-              stroke="#6fd3cf" stroke-width="6" stroke-linecap="round"/>
-        <!-- vertical indicator (up/down) as a side bar -->
-        <text x="110" y="22" text-anchor="middle" font-size="16">FWD</text>
-        <text x="110" y="214" text-anchor="middle" font-size="16">REV</text>
-        <text x="16" y="116" font-size="16">L</text>
-        <text x="198" y="116" font-size="16">R</text>
-      </svg>
-    </div>
-    <div class="stat" style="margin-top:10px"><div class="label">Vertical</div>
-      <div class="value" id="vert">--</div></div>
-  </div>
-
-  <div class="row2">
-    <div class="card">
-      <h2>Controls (Logitech F310 gamepad)</h2>
-      <div style="display:flex;flex-direction:column;gap:16px">
-        <div class="stat">
-          <div class="label">Driving</div>
-          <div class="help">
-            <b>Left stick — up/down:</b> vertical thruster (push up = surface, down = dive).<br>
-            <b>Right stick — up/down:</b> forward / reverse (both horizontal thrusters together).<br>
-            <b>Right stick — left/right:</b> turn (the left and right thrusters drive opposite ways).
-          </div>
-        </div>
-        <div class="stat">
-          <div class="label">Gripper</div>
-          <div class="help">
-            <b>Right trigger (RT):</b> squeeze to close the gripper on an object. It
-            <b>keeps holding</b> once you let go of the trigger, so you can carry
-            things hands-free; squeezing again only tightens.<br>
-            <b>A button:</b> opens the gripper to release / let go.
-          </div>
-        </div>
-        <div class="stat">
-          <div class="label">Cruise control</div>
-          <div class="help">
-            <b>Left trigger (LT):</b> squeeze once to lock all three thruster speeds
-            (forward, turn, vertical) so the ROV holds course hands-free; squeeze
-            again to turn cruise off. <b>Moving any stick</b> also cancels cruise
-            and returns to manual control.
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Thruster channels</h2>
-      <table>
-        <thead><tr><th>Thruster</th><th>Channel</th><th>Direction</th>
-          <th>Power</th><th>PWM (&micro;s)</th></tr></thead>
-        <tbody id="channels"></tbody>
-      </table>
     </div>
   </div>
 </div>
