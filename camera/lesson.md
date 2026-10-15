@@ -201,9 +201,9 @@ instant and corrupt it.
 
 This is built on Python's standard `http.server`. Two URLs are handled:
 
-- `/` returns a tiny HTML page containing `<img src="/stream.mjpg">` — the
+- `/` returns a tiny HTML page containing `<img src="/video">` — the
   page your browser actually opens.
-- `/stream.mjpg` is the actual video stream. The key line is the
+- `/video` is the actual video stream. The key line is the
   `multipart/x-mixed-replace` header, same idea as the simple version, then
   it writes `boundary + headers + one JPEG` over and over until the browser
   disconnects.

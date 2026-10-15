@@ -84,7 +84,10 @@ class StreamingHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/":
             self._serve_index()
-        elif self.path == "/stream.mjpg":
+        # The stream is served at /video (the same path camera_simple.py uses),
+        # so the dashboard and anything else can assume ONE stream URL for
+        # either camera program. /stream.mjpg stays as an alias for old links.
+        elif self.path in ("/video", "/stream.mjpg"):
             self._serve_stream()
         else:
             self.send_error(404)
@@ -93,7 +96,7 @@ class StreamingHandler(BaseHTTPRequestHandler):
         body = (
             "<html><head><title>ROV Camera</title></head>"
             "<body style='margin:0;background:#111'>"
-            "<img src='/stream.mjpg' style='width:100%;height:auto;display:block'>"
+            "<img src='/video' style='width:100%;height:auto;display:block'>"
             "</body></html>"
         ).encode("utf-8")
         self.send_response(200)

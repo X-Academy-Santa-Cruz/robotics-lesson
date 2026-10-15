@@ -74,7 +74,7 @@ Open **http://<dashboard-machine-ip>:8080/** in a browser. Pilot with
 | `rov_server.py` | `--telemetry-host` | where to send telemetry (the dashboard's IP) |
 | `rov_server.py` | `--telemetry-port` | telemetry UDP port (default 5006) |
 | `dashboard.py` | `--camera-port` | port the camera stream uses (default 8000); the video URL is built from this and the host you opened the dashboard on |
-| `dashboard.py` | `--camera-path` | stream path (default `/stream.mjpg` for stream_server.py; use `/video` for camera_simple.py) |
+| `dashboard.py` | `--camera-path` | stream path (default `/video`, which both camera programs serve) |
 | `dashboard.py` | `--camera-url` | only if the camera is on a different host than the dashboard; a full MJPEG URL |
 | `dashboard.py` | `--telemetry-port` | UDP port to receive telemetry on (match the server) |
 | `dashboard.py` | `--port` | web port for the dashboard page (default 8080) |
@@ -95,7 +95,7 @@ Open **http://<dashboard-machine-ip>:8080/** in a browser. Pilot with
 | Problem | Likely cause and fix |
 |---|---|
 | Page loads but gauges say `--` | No telemetry arriving — check `rov_server.py`'s `--telemetry-host` is this machine's IP and the ports match. |
-| Video box is blank | `stream_server.py` isn't running, or the stream path is wrong — open `http://<same-host>:8000/stream.mjpg` directly in a browser to check. (`stream_server.py` serves `/stream.mjpg`; the older `camera_simple.py` serves `/video` — set `--camera-path` to match.) The video follows the dashboard's host automatically; only use `--camera-url` if the camera is on another machine. |
+| Video box is blank | `stream_server.py` isn't running — open `http://<same-host>:8000/video` directly in a browser to check. Both camera programs serve the stream at `/video`. The video follows the dashboard's host automatically; only use `--camera-url` if the camera is on another machine. |
 | `Address already in use` | Another program has the port — stop it, or pass a different `--port` / `--telemetry-port`. |
 | Temperature shows `n/a` | No sensor on the bus (that's fine) — the dashboard just omits it. |
 

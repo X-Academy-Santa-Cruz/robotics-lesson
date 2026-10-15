@@ -158,7 +158,7 @@ let lastTime = null, staleTicks = 0;
 (function () {
   const override = {{ camera_override | tojson }};
   const port = {{ camera_port | tojson }};
-  const path = {{ camera_path | tojson }};   // stream_server.py serves /stream.mjpg
+  const path = {{ camera_path | tojson }};   // both camera programs serve /video
   const url = override || (window.location.protocol + "//" +
               window.location.hostname + ":" + port + path);
   document.getElementById("camera").src = url;
@@ -235,10 +235,9 @@ tick();
               help="Port the camera stream (stream_server.py) runs on. The "
                    "dashboard builds the video URL from this and whatever host "
                    "the browser used to open the dashboard.")
-@click.option("--camera-path", default="/stream.mjpg", show_default=True,
-              help="Path the camera server serves the MJPEG stream at. "
-                   "stream_server.py uses /stream.mjpg; camera_simple.py uses "
-                   "/video.")
+@click.option("--camera-path", default="/video", show_default=True,
+              help="Path the camera server serves the MJPEG stream at. Both "
+                   "stream_server.py and camera_simple.py serve /video.")
 @click.option("--camera-url", default=None,
               help="Full camera MJPEG URL, ONLY if the camera is on a different "
                    "host than the dashboard. Normally leave this unset so the "
