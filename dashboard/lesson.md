@@ -110,3 +110,10 @@ Open **http://<dashboard-machine-ip>:8080/** in a browser. Pilot with
 4. Turn a channel's power bar **red** when it's above, say, 80%.
 5. (Advanced) Replace the browser's polling with **server-sent events** (SSE)
    so the page updates the instant a packet arrives.
+
+<!-- course-flow-nav -->
+---
+
+### Where this lesson fits
+
+Step 10 of 11 in the course. ← Previous: **Networked Control (Piloting)** (`../control/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Autonomous Driving (AI project)** (`../autopilot/lesson.md`) →

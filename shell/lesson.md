@@ -273,3 +273,10 @@ sudo poweroff
 4. Run `hostname -I`, write down the Pi's IP address, and (from another
    machine if you can) `ssh xacademy@<that address>`.
 5. Reboot the Pi with `sudo reboot` and log back in.
+
+<!-- course-flow-nav -->
+---
+
+### Where this lesson fits
+
+Step 1 of 11 in the course. This is the first lesson. &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Hello, World** (`../hello/lesson.md`) →

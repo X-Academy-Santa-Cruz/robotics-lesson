@@ -250,3 +250,10 @@ message instead of leaving a dead window.) Pick one:
 - **matplotlib / pyplot** — the live graph:
   <https://matplotlib.org/stable/api/pyplot_summary.html>
 - **STTS22H datasheet** (register details): search "STTS22H datasheet ST".
+
+<!-- course-flow-nav -->
+---
+
+### Where this lesson fits
+
+Step 8 of 11 in the course. ← Previous: **Thruster Control** (`../thrusters/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Networked Control (Piloting)** (`../control/lesson.md`) →

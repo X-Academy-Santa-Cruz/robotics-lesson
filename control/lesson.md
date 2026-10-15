@@ -295,3 +295,10 @@ the failsafe message and stop the thrusters on its own.
   `rov_server.py`: <https://docs.python.org/3/library/socket.html>
 - **SparkFun Pi Servo HAT** (`pi_servo_hat`) — used via `ThrusterRig` to drive
   the thrusters and gripper: <https://docs.sparkfun.com/piservohat_py/>
+
+<!-- course-flow-nav -->
+---
+
+### Where this lesson fits
+
+Step 9 of 11 in the course. ← Previous: **I2C Temperature Sensor** (`../sensors/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **ROV Dashboard** (`../dashboard/lesson.md`) →

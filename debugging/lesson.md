@@ -172,3 +172,10 @@ often on the same bug, often within the same five minutes.
 5. In a sentence or two, describe a bug from earlier in this course (real
    or imagined) where a breakpoint would be the wrong tool, and one where
    `print()` would be the wrong tool.
+
+<!-- course-flow-nav -->
+---
+
+### Where this lesson fits
+
+Step 5 of 11 in the course. ← Previous: **PyCharm** (`../pycharm/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Camera** (`../camera/lesson.md`) →

@@ -5,10 +5,11 @@ write software that drives the ROV through a **pattern on its own** — no hands
 on the controller. This is your chance to put together everything from the
 course: Python, the thruster code, PWM, and a little bit of planning.
 
-You can use an **AI assistant (Claude or ChatGPT)** to help you write the code.
-That's not cheating here — using AI well is a real skill, and it's one this
-program teaches on purpose. But you are the engineer: you decide what to build,
-you test it safely, and you have to understand every line before you run it.
+You can use an **AI assistant — Claude, ChatGPT, or Gemini** — to help you
+write the code. That's not cheating here: using AI well is a real engineering
+skill, and it's one this program teaches on purpose. But you are the engineer:
+you decide what to build, you test it safely, and you have to understand every
+line before you run it.
 
 ## What you'll build
 
@@ -74,20 +75,50 @@ python3 autopilot.py
 Press `Ctrl+C` any time to stop; the program always sends a stop command on
 its way out.
 
-## Using Claude or ChatGPT well
+## Using an AI assistant (Claude, ChatGPT, or Gemini) well
 
 The AI is a fast, tireless helper that sometimes confidently gets things wrong.
-Use it like a smart teammate whose work you always check.
+Use it like a smart teammate whose work you always check. It works the same way
+in all three — paste in your code and context, ask, then verify.
 
-**Give it the context it needs.** Paste in `autopilot.py` (and
-`thruster_control.py` if it asks), then describe what you want. A good prompt:
+### A prompt template you can reuse
 
-> "Here's my ROV's `autopilot.py`. `rig.drive(forward, turn, vertical)` takes
-> three values from −1 to 1. Help me change `build_pattern()` so the ROV drives
-> a **square**: forward, turn ~90°, four times. I don't know the exact turn
-> time — explain how I'd find it by testing."
+Give the AI the context it needs, not just "write me a pattern." Fill in the
+blanks:
 
-**Then do these every time:**
+> I'm writing Python to drive an underwater ROV autonomously. I control it with
+> one function: `rig.drive(forward, turn, vertical)`, where each value is −1.0
+> to +1.0 (forward: −1 reverse…+1 forward; turn: −1 left…+1 right; vertical: −1
+> down…+1 up). I hold a setting with `time.sleep(seconds)`. Here is my current
+> program: *(paste `autopilot.py`)*.
+>
+> Please change `build_pattern()` so the ROV drives **\_\_\_\_** *(describe the
+> pattern)*. Keep the safety caps and the `finally` stop that are already there.
+> Explain each step, and tell me which numbers I'll need to tune by testing.
+
+### Example prompts
+
+- **Square:** "…so the ROV drives a square: go forward, turn about 90°, repeat
+  four times. Use a loop so I'm not copying the same lines. I don't know the
+  exact turn time — explain how to find it by testing with `--dry-run` first."
+- **Figure-eight:** "…so it drives a figure-eight: forward while turning right
+  for one loop, then forward while turning left for the next. Make the turn
+  amount a variable at the top so I can tune it."
+- **Search sweep:** "…so it does a search sweep: forward a few seconds, turn
+  180°, forward back, then a short sideways step, and repeat 3 times."
+- **Add depth:** "Before the pattern, dive for 2 seconds; after it, surface for
+  2 seconds. Keep everything else the same."
+- **Explain, don't just write:** "Explain what `build_pattern()` returns and
+  why it's a list of tuples, as if to a student who just learned Python lists."
+
+### A worked example to learn from
+
+[`autopilot_example_square.py`](autopilot_example_square.py) is a **finished**
+version that drives a square using a loop — exactly the kind of result a good
+AI conversation produces. Read it to see how the pieces fit, run it with
+`--dry-run`, then write your **own** pattern (don't just copy it).
+
+### Do these every time
 
 - **Read what it wrote** and make sure you understand each line. If you can't
   explain a line to your teammate, ask the AI to explain it — don't run it.
@@ -129,3 +160,10 @@ Show a mentor:
 | `Remote I/O error` when it starts | The Servo HAT isn't responding — check it's seated and powered; `i2cdetect -y 1` should show `40`. |
 | A thruster spins the wrong way | Expected on a new build — note it, and either swap the wiring or flip the sign in your pattern. |
 | The ROV won't turn far enough | Tune it: more `turn`, or hold the turn longer. Use `--dry-run` to plan, then test. |
+
+<!-- course-flow-nav -->
+---
+
+### Where this lesson fits
+
+Step 11 of 11 in the course. ← Previous: **ROV Dashboard** (`../dashboard/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; This is the last lesson — you've finished the course.

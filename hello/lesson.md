@@ -85,3 +85,10 @@ loop on this tiny program first.
   <https://docs.python.org/3/library/functions.html#print>)
 - **PyCharm** — running and debugging code:
   <https://www.jetbrains.com/help/pycharm/running-applications.html>
+
+<!-- course-flow-nav -->
+---
+
+### Where this lesson fits
+
+Step 2 of 11 in the course. ← Previous: **Raspberry Pi & Linux** (`../shell/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Git Basics** (`../git/lesson.md`) →

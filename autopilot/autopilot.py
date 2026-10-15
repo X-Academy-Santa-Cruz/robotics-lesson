@@ -6,9 +6,10 @@ thrusters safely and runs one very simple pattern (a there-and-back). Your job
 is to extend it - or rewrite it - so the ROV drives a more interesting pattern
 on its own: a square, a figure-eight, a search sweep, a spiral, your choice.
 
-You may use an AI assistant (Claude or ChatGPT) to help you write it. Read the
-lesson (lesson.md) for how to do that well, and for the safety rules - those
-are on you, not the AI.
+You may use an AI assistant (Claude, ChatGPT, or Gemini) to help you write it.
+Read the lesson (lesson.md) for how to do that well - including prompt hints -
+and for the safety rules, which are on you, not the AI. For a finished example
+to learn from, see autopilot_example_square.py in this folder.
 
 HOW IT DRIVES
 -------------

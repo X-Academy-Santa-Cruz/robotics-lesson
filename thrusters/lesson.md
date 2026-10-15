@@ -311,3 +311,10 @@ stop at the end. If a thruster spins the wrong direction, see below.
 - **SparkFun Pi Servo HAT** (`pi_servo_hat`) — drives the PCA9685 on the HAT:
   docs <https://docs.sparkfun.com/piservohat_py/>, source
   <https://github.com/sparkfun/PiServoHat_Py>
+
+<!-- course-flow-nav -->
+---
+
+### Where this lesson fits
+
+Step 7 of 11 in the course. ← Previous: **Camera** (`../camera/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **I2C Temperature Sensor** (`../sensors/lesson.md`) →

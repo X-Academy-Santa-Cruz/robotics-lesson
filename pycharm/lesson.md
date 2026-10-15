@@ -203,3 +203,10 @@ again.
    `control/rov_server.py`, rename them something clear, and start both at
    once. Confirm you can see two separate tabs in the Run tool window and
    stop one without affecting the other.
+
+<!-- course-flow-nav -->
+---
+
+### Where this lesson fits
+
+Step 4 of 11 in the course. ← Previous: **Git Basics** (`../git/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Debugging** (`../debugging/lesson.md`) →

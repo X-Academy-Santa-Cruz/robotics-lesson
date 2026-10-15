@@ -113,3 +113,10 @@ For this course, your instructor will tell you whether to work directly on
    `git log --oneline` to confirm it's there.
 5. Delete the file, run `git status` again, and notice how git reports a
    deletion the same way it reports an edit.
+
+<!-- course-flow-nav -->
+---
+
+### Where this lesson fits
+
+Step 3 of 11 in the course. ← Previous: **Hello, World** (`../hello/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **PyCharm** (`../pycharm/lesson.md`) →

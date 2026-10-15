@@ -50,14 +50,19 @@ new to Linux or version control.
 
 ## ROV Lessons
 
+Work through these in order. First get each subsystem running on its own
+(camera, thrusters, sensor), then pilot it over the network, then tie it all
+together in the dashboard, and finally take on the AI-assisted autonomous
+project.
+
 | # | Lesson | Folder |
 |---|---|---|
 | 1 | Streaming Video from a USB Camera | [`camera/`](camera/lesson.md) |
 | 2 | Thruster Control | [`thrusters/`](thrusters/lesson.md) |
-| 3 | Networked Control (Piloting the ROV) | [`control/`](control/lesson.md) |
-| 4 | Autonomous Driving (AI-assisted project) | [`autopilot/`](autopilot/lesson.md) |
-| 5 | I2C Temperature Sensor (stretch) | [`sensors/`](sensors/lesson.md) |
-| 6 | ROV Dashboard (advanced web app) | [`dashboard/`](dashboard/lesson.md) |
+| 3 | I2C Temperature Sensor | [`sensors/`](sensors/lesson.md) |
+| 4 | Networked Control (Piloting the ROV) | [`control/`](control/lesson.md) |
+| 5 | ROV Dashboard (ties it all together) | [`dashboard/`](dashboard/lesson.md) |
+| 6 | Autonomous Driving — AI-assisted project (capstone) | [`autopilot/`](autopilot/lesson.md) |
 
 ## Tools
 

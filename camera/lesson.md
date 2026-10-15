@@ -331,3 +331,10 @@ Official documentation for the libraries these programs use:
   <https://click.palletsprojects.com/>
 - **http.server** (Python standard library) — the server in `stream_server.py`:
   <https://docs.python.org/3/library/http.server.html>
+
+<!-- course-flow-nav -->
+---
+
+### Where this lesson fits
+
+Step 6 of 11 in the course. ← Previous: **Debugging** (`../debugging/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Thruster Control** (`../thrusters/lesson.md`) →
