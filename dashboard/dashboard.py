@@ -63,45 +63,51 @@ PAGE = """<!doctype html>
 <title>ROV Dashboard</title>
 <style>
   :root { color-scheme: dark; }
-  /* zoom: 0.8 shrinks the whole dashboard to 80% of its normal size. */
   body { margin: 0; background: #0e2439; color: #eef4f3;
-         font-family: 'IBM Plex Sans', Arial, sans-serif; zoom: 0.8; }
-  header { padding: 14px 24px; background: #0b1c2e; border-bottom: 1px solid #1f4a66;
-           display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
-  header h1 { margin: 0; font-size: 20px; letter-spacing: 1px; }
+         font-family: 'IBM Plex Sans', Arial, sans-serif; font-size: 18px; }
+  header { padding: 18px 28px; background: #0b1c2e; border-bottom: 1px solid #1f4a66;
+           display: flex; align-items: baseline; gap: 22px; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 28px; letter-spacing: 1px; }
   header span { color: #6fd3cf; font-weight: 600; }
-  header .ip { color: #8fb3b0; font-size: 14px; }
+  header .ip { color: #8fb3b0; font-size: 20px; }
   header .ip b { color: #eef4f3; font-weight: 600; }
-  .help { font-size: 13px; color: #bfd8d5; line-height: 1.5; }
+  .help { font-size: 18px; color: #bfd8d5; line-height: 1.6; }
   .help b { color: #eef4f3; }
   .help .key { display: inline-block; background: #0b1c2e; border: 1px solid #1f4a66;
                border-radius: 6px; padding: 1px 7px; font-weight: 600; color: #6fd3cf; }
-  .hint { font-size: 12px; color: #8fb3b0; margin-top: 4px; }
-  .wrap { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; padding: 20px;
-          max-width: 1400px; margin: 0 auto; }
-  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+  .hint { font-size: 15px; color: #8fb3b0; margin-top: 6px; line-height: 1.45; }
+  /* Top row: camera (wide) + status/dial. */
+  .wrap { display: grid; grid-template-columns: 2fr 1fr; gap: 22px;
+          padding: 22px; max-width: 1800px; margin: 0 auto; }
+  /* Second row: controls (left) and thruster channels (right), full width. */
+  .row2 { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr;
+          gap: 22px; }
+  @media (max-width: 1000px) {
+    .wrap { grid-template-columns: 1fr; }
+    .row2 { grid-template-columns: 1fr; }
+  }
   .card { background: #13324a; border: 1px solid #1f4a66; border-radius: 14px;
-          padding: 18px; }
-  .card h2 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase;
+          padding: 22px; }
+  .card h2 { margin: 0 0 16px; font-size: 18px; text-transform: uppercase;
              letter-spacing: 2px; color: #6fd3cf; font-weight: 600; }
   img.video { width: 100%; border-radius: 10px; background: #000; display: block; }
-  .stat-row { display: flex; gap: 16px; flex-wrap: wrap; }
-  .stat { flex: 1; min-width: 120px; background: #0e2439; border-radius: 10px;
-          padding: 14px 16px; }
-  .stat .label { font-size: 12px; color: #8fb3b0; text-transform: uppercase;
+  .stat-row { display: flex; gap: 18px; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 150px; background: #0e2439; border-radius: 10px;
+          padding: 16px 18px; }
+  .stat .label { font-size: 15px; color: #8fb3b0; text-transform: uppercase;
                  letter-spacing: 1px; }
-  .stat .value { font-size: 28px; font-weight: 600; margin-top: 4px; }
+  .stat .value { font-size: 34px; font-weight: 600; margin-top: 6px; }
   table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #1f4a66;
-           font-size: 15px; }
-  th { color: #8fb3b0; font-weight: 600; font-size: 12px; text-transform: uppercase; }
-  .bar { height: 8px; background: #0b1c2e; border-radius: 5px; overflow: hidden; margin-top: 4px; }
+  th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid #1f4a66;
+           font-size: 20px; }
+  th { color: #8fb3b0; font-weight: 600; font-size: 15px; text-transform: uppercase; }
+  .bar { height: 10px; background: #0b1c2e; border-radius: 5px; overflow: hidden; margin-top: 6px; }
   .bar > div { height: 100%; background: #6fd3cf; width: 0; transition: width .15s; }
-  .pill { display: inline-block; padding: 4px 12px; border-radius: 999px;
-          font-size: 14px; font-weight: 600; }
+  .pill { display: inline-block; padding: 7px 16px; border-radius: 999px;
+          font-size: 18px; font-weight: 600; }
   .on { background: #15803d; color: #eafff0; }
   .off { background: #334155; color: #cbd5e1; }
-  .badges { display: flex; gap: 12px; }
+  .badges { display: flex; gap: 14px; }
   svg text { fill: #eef4f3; }
   .stale { opacity: .45; }
 </style>
@@ -139,54 +145,56 @@ PAGE = """<!doctype html>
         <line id="driveArrow" x1="110" y1="110" x2="110" y2="30"
               stroke="#6fd3cf" stroke-width="6" stroke-linecap="round"/>
         <!-- vertical indicator (up/down) as a side bar -->
-        <text x="110" y="20" text-anchor="middle" font-size="12">FWD</text>
-        <text x="110" y="214" text-anchor="middle" font-size="12">REV</text>
-        <text x="18" y="114" font-size="12">L</text>
-        <text x="196" y="114" font-size="12">R</text>
+        <text x="110" y="22" text-anchor="middle" font-size="16">FWD</text>
+        <text x="110" y="214" text-anchor="middle" font-size="16">REV</text>
+        <text x="16" y="116" font-size="16">L</text>
+        <text x="198" y="116" font-size="16">R</text>
       </svg>
     </div>
     <div class="stat" style="margin-top:10px"><div class="label">Vertical</div>
       <div class="value" id="vert">--</div></div>
   </div>
 
-  <div class="card" style="grid-column: 1 / -1;">
-    <h2>Thruster channels</h2>
-    <table>
-      <thead><tr><th>Thruster</th><th>Channel</th><th>Direction</th>
-        <th>Power</th><th>PWM (&micro;s)</th></tr></thead>
-      <tbody id="channels"></tbody>
-    </table>
-  </div>
+  <div class="row2">
+    <div class="card">
+      <h2>Controls (Logitech F310 gamepad)</h2>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="stat">
+          <div class="label">Driving</div>
+          <div class="help">
+            <b>Left stick — up/down:</b> vertical thruster (push up = surface, down = dive).<br>
+            <b>Right stick — up/down:</b> forward / reverse (both horizontal thrusters together).<br>
+            <b>Right stick — left/right:</b> turn (the left and right thrusters drive opposite ways).
+          </div>
+        </div>
+        <div class="stat">
+          <div class="label">Gripper</div>
+          <div class="help">
+            <b>Right trigger (RT):</b> squeeze to close the gripper on an object. It
+            <b>keeps holding</b> once you let go of the trigger, so you can carry
+            things hands-free; squeezing again only tightens.<br>
+            <b>A button:</b> opens the gripper to release / let go.
+          </div>
+        </div>
+        <div class="stat">
+          <div class="label">Cruise control</div>
+          <div class="help">
+            <b>Left trigger (LT):</b> squeeze once to lock all three thruster speeds
+            (forward, turn, vertical) so the ROV holds course hands-free; squeeze
+            again to turn cruise off. <b>Moving any stick</b> also cancels cruise
+            and returns to manual control.
+          </div>
+        </div>
+      </div>
+    </div>
 
-  <div class="card" style="grid-column: 1 / -1;">
-    <h2>Controls (Logitech F310 gamepad)</h2>
-    <div class="stat-row">
-      <div class="stat" style="min-width:260px">
-        <div class="label">Driving</div>
-        <div class="help">
-          <b>Left stick — up/down:</b> vertical thruster (push up = surface, down = dive).<br>
-          <b>Right stick — up/down:</b> forward / reverse (both horizontal thrusters together).<br>
-          <b>Right stick — left/right:</b> turn (the left and right thrusters drive opposite ways).
-        </div>
-      </div>
-      <div class="stat" style="min-width:260px">
-        <div class="label">Gripper</div>
-        <div class="help">
-          <b>Right trigger (RT):</b> squeeze to close the gripper on an object. It
-          <b>keeps holding</b> once you let go of the trigger, so you can carry
-          things hands-free; squeezing again only tightens.<br>
-          <b>A button:</b> opens the gripper to release / let go.
-        </div>
-      </div>
-      <div class="stat" style="min-width:260px">
-        <div class="label">Cruise control</div>
-        <div class="help">
-          <b>Left trigger (LT):</b> squeeze once to lock all three thruster speeds
-          (forward, turn, vertical) so the ROV holds course hands-free; squeeze
-          again to turn cruise off. <b>Moving any stick</b> also cancels cruise
-          and returns to manual control.
-        </div>
-      </div>
+    <div class="card">
+      <h2>Thruster channels</h2>
+      <table>
+        <thead><tr><th>Thruster</th><th>Channel</th><th>Direction</th>
+          <th>Power</th><th>PWM (&micro;s)</th></tr></thead>
+        <tbody id="channels"></tbody>
+      </table>
     </div>
   </div>
 </div>
