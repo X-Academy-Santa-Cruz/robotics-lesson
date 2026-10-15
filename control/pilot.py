@@ -64,7 +64,7 @@ class ControllerProfile:
                  invert_forward=True, invert_turn=False, invert_vertical=True,
                  gripper_button=None, gripper_axis=None, gripper_axis_rest=-1.0,
                  release_button=None, cruise_button=None,
-                 cruise_axis=None, cruise_axis_rest=-1.0):
+                 cruise_axis=None, cruise_axis_rest=-1.0, estop_button=None):
         self.name = name
         self.axis_forward = axis_forward
         self.axis_turn = axis_turn
@@ -79,17 +79,19 @@ class ControllerProfile:
         self.cruise_button = cruise_button
         self.cruise_axis = cruise_axis            # analog trigger that engages cruise
         self.cruise_axis_rest = cruise_axis_rest
+        self.estop_button = estop_button          # emergency stop (latching)
 
 
 # Logitech Extreme 3D Pro: pitch (axis 1), twist/yaw (axis 2), throttle
 # slider (axis 3). The trigger is button 0. The single stick drives
 # forward/turn; the throttle slider drives vertical. The trigger (button 0)
-# grips; button 2 opens the gripper to release; button 3 toggles cruise.
+# grips; button 2 opens the gripper to release; button 3 toggles cruise;
+# button 4 is the emergency stop.
 PROFILE_EXTREME_3D = ControllerProfile(
     name="Logitech Extreme 3D Pro",
     axis_forward=1, axis_turn=2, axis_vertical=3,
     invert_forward=True, invert_turn=False, invert_vertical=True,
-    gripper_button=0, release_button=2, cruise_button=3,
+    gripper_button=0, release_button=2, cruise_button=3, estop_button=4,
 )
 
 # Logitech F310 (XInput mode, the X/D switch set to X):
@@ -100,14 +102,15 @@ PROFILE_EXTREME_3D = ControllerProfile(
 # Control layout: LEFT stick Y -> vertical, RIGHT stick Y -> forward,
 # RIGHT stick X -> turn. The right trigger (RT) grips; the A button (0) opens
 # the gripper to release. The LEFT trigger (LT) TOGGLES cruise control on/off
-# (locking all three thruster speeds); moving any stick also cancels it.
+# (locking all three thruster speeds); moving any stick also cancels it. The
+# red B button (1) is the EMERGENCY STOP.
 PROFILE_F310 = ControllerProfile(
     name="Logitech Gamepad F310",
     axis_forward=4, axis_turn=3, axis_vertical=1,
     invert_forward=True, invert_turn=False, invert_vertical=True,
     gripper_axis=5, gripper_axis_rest=-1.0,
-    release_button=0, cruise_button=1,
-    cruise_axis=2, cruise_axis_rest=-1.0,
+    release_button=0, cruise_axis=2, cruise_axis_rest=-1.0,
+    estop_button=1,   # red B button = emergency stop
 )
 
 # A safe fallback used when the controller name isn't recognized. Assumes a
@@ -116,8 +119,8 @@ PROFILE_F310 = ControllerProfile(
 PROFILE_DEFAULT = ControllerProfile(
     name="Generic",
     axis_forward=4, axis_turn=3, axis_vertical=1,
-    gripper_button=0, release_button=1, cruise_button=2,
-    cruise_axis=2, cruise_axis_rest=-1.0,
+    gripper_button=0, release_button=1,
+    cruise_axis=2, cruise_axis_rest=-1.0, estop_button=3,
 )
 
 
@@ -227,6 +230,7 @@ def main(pi_address, port, do_calibrate):
     buttons = {}            # last-seen state per button/trigger, for edge detection
     cruise_locked = None    # (forward, turn, vertical) being held, or None when off
     cruise_cancel_armed = False  # True once sticks are centered, so a push cancels
+    estopped = False        # emergency stop latched on?
 
     try:
         while True:
@@ -292,13 +296,32 @@ def main(pi_address, port, do_calibrate):
             else:
                 forward, turn, vertical = stick_forward, stick_turn, stick_vertical
 
-            # 6th field: cruise_on, so the server (and the dashboard) can show it.
+            # --- EMERGENCY STOP (latching) --------------------------------
+            # Pressing the e-stop button (F310: red B) cuts all three thrusters
+            # to zero and keeps them there - it overrides cruise and the sticks.
+            # It LATCHES: the ROV stays stopped until you press e-stop again
+            # with the sticks centered, so it can't lurch when you clear it.
+            if pressed_edge(joystick, profile.estop_button, buttons):
+                if not estopped:
+                    estopped = True
+                    cruise_locked = None  # drop cruise when we slam on the brakes
+                    click.echo("*** EMERGENCY STOP *** thrusters cut. "
+                               "Center the sticks and press e-stop again to clear.")
+                elif sticks_at_neutral:
+                    estopped = False
+                    click.echo("Emergency stop cleared - back to manual control.")
+
+            if estopped:
+                forward = turn = vertical = 0.0
+                cruise_on = False
+
+            # Packet: forward,turn,vertical,gripper,gripper_release,cruise_on,estop
             message = (f"{forward},{turn},{vertical},{gripper},"
-                       f"{int(gripper_release)},{int(cruise_on)}")
+                       f"{int(gripper_release)},{int(cruise_on)},{int(estopped)}")
             sock.sendto(message.encode("utf-8"), target)
             time.sleep(interval)
     except KeyboardInterrupt:
-        sock.sendto(b"0,0,0,0,0,0", target)  # explicit stop on the way out
+        sock.sendto(b"0,0,0,0,0,0,0", target)  # explicit stop on the way out
     finally:
         sock.close()
 
