@@ -112,12 +112,6 @@ PAGE = """<!doctype html>
           font-size: 17px; font-weight: 600; }
   .on { background: #15803d; color: #eafff0; }
   .off { background: #334155; color: #cbd5e1; }
-  .danger { background: #dc2626; color: #fff; }
-  /* Flash the e-stop pill when engaged so it's impossible to miss. */
-  @keyframes estopflash { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
-  .estop-on { background: #dc2626; color: #fff; animation: estopflash 0.7s infinite; }
-  /* A red ring around the whole page while emergency-stopped. */
-  body.estopped { outline: 6px solid #dc2626; outline-offset: -6px; }
   .badges { display: flex; gap: 14px; }
   svg text { fill: #eef4f3; }
   .stale { opacity: .45; }
@@ -162,14 +156,6 @@ PAGE = """<!doctype html>
           (forward, turn, vertical) so the ROV holds course hands-free; squeeze
           again to turn cruise off. <b>Moving any stick</b> also cancels cruise
           and returns to manual control.
-        </div>
-      </div>
-      <div class="stat" style="border:1px solid #dc2626">
-        <div class="label" style="color:#f87171">Emergency stop</div>
-        <div class="help">
-          <b>Red B button:</b> cuts all thrusters to zero immediately and holds
-          them stopped (overrides cruise and the sticks). It <b>latches</b> —
-          center the sticks and press B again to clear it and return to manual.
         </div>
       </div>
     </div>
@@ -217,7 +203,6 @@ PAGE = """<!doctype html>
       </div>
     </div>
     <div class="badges" style="margin-top:16px">
-      <span class="pill off" id="estop">E-STOP ready</span>
       <span class="pill off" id="cruise">Cruise off</span>
       <span class="pill off" id="grip">Gripper open</span>
     </div>
@@ -260,11 +245,6 @@ function render(t) {
     (tc == null) ? "n/a"
     : tc.toFixed(1) + " °C / " + (tc * 9/5 + 32).toFixed(1) + " °F";
   document.getElementById("armed").textContent = t.armed ? "Yes" : "No";
-
-  const estop = document.getElementById("estop");
-  estop.textContent = t.estop ? "⛔ EMERGENCY STOP" : "E-STOP ready";
-  estop.className = "pill " + (t.estop ? "estop-on" : "off");
-  document.body.classList.toggle("estopped", !!t.estop);
 
   const cruise = document.getElementById("cruise");
   cruise.textContent = t.cruise ? "Cruise ON" : "Cruise off";

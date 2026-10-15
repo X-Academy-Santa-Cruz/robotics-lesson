@@ -9,12 +9,11 @@ Reuses the ThrusterRig built in the thrusters lesson instead of rewriting
 thruster control from scratch.
 
 Control packet in (comma-separated), from pilot.py:
-    forward,turn,vertical,gripper[,gripper_release][,cruise_on][,estop]
+    forward,turn,vertical,gripper[,gripper_release][,cruise_on]
   forward/turn/vertical : -1.0 .. +1.0 thruster commands
   gripper               : 0.0 (not squeezing) .. 1.0 (trigger squeezed = grip)
   gripper_release       : 1 = open the gripper to let go; 0 = normal.
   cruise_on             : 1 = pilot is holding speed with cruise; 0 = manual.
-  estop                 : 1 = EMERGENCY STOP engaged (thrusters forced to zero).
   (trailing fields are optional, so older packets still work.)
 
 Telemetry packet out: one JSON object per update, sent to --telemetry-host:
@@ -47,8 +46,7 @@ def parse_packet(data: bytes):
     gripper = parts[3] if len(parts) > 3 else 0.0
     gripper_release = bool(parts[4]) if len(parts) > 4 else False
     cruise_on = bool(parts[5]) if len(parts) > 5 else False
-    estop = bool(parts[6]) if len(parts) > 6 else False
-    return forward, turn, vertical, gripper, gripper_release, cruise_on, estop
+    return forward, turn, vertical, gripper, gripper_release, cruise_on
 
 
 class TemperatureReader:
@@ -106,12 +104,9 @@ def main(port, address, telemetry_host, telemetry_port, bus):
     temp_reader = TemperatureReader(bus_num=bus)
     cruise_on = False
 
-    estopped = False
-
     def send_telemetry():
         snap = rig.telemetry()
         snap["cruise"] = cruise_on
-        snap["estop"] = estopped
         snap["temperature_c"] = temp_reader.latest()
         snap["time"] = round(time.time(), 2)
         try:
@@ -133,19 +128,12 @@ def main(port, address, telemetry_host, telemetry_port, bus):
                 send_telemetry()
                 continue
             try:
-                forward, turn, vertical, gripper, release, cruise_on, estopped = parse_packet(data)
+                forward, turn, vertical, gripper, release, cruise_on = parse_packet(data)
             except (ValueError, IndexError):
                 continue  # ignore a malformed packet, just wait for the next one
-            if estopped:
-                # Pilot is holding emergency stop. The pilot already sends zeros,
-                # but stop() here too as a belt-and-suspenders guarantee.
-                rig.stop()
-            else:
-                rig.drive(forward, turn, vertical)
+            rig.drive(forward, turn, vertical)
             # The gripper grips when the trigger is squeezed and HOLDS that grip
             # when the trigger is released; the release flag opens it to let go.
-            # (The gripper stays controllable during e-stop so you can let go of
-            # whatever you're holding.)
             if release:
                 rig.open_gripper()
             else:
