@@ -63,51 +63,63 @@ PAGE = """<!doctype html>
 <title>ROV Dashboard</title>
 <style>
   :root { color-scheme: dark; }
+  /* Fit the whole dashboard in the viewport (e.g. 1920x1080) with no scroll. */
+  html, body { height: 100%; }
   body { margin: 0; background: #0e2439; color: #eef4f3;
-         font-family: 'IBM Plex Sans', Arial, sans-serif; font-size: 18px; }
-  header { padding: 18px 28px; background: #0b1c2e; border-bottom: 1px solid #1f4a66;
-           display: flex; align-items: baseline; gap: 22px; flex-wrap: wrap; }
-  header h1 { margin: 0; font-size: 28px; letter-spacing: 1px; }
+         font-family: 'IBM Plex Sans', Arial, sans-serif; font-size: 17px;
+         height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  header { flex: 0 0 auto; padding: 10px 24px; background: #0b1c2e;
+           border-bottom: 1px solid #1f4a66; display: flex; align-items: baseline;
+           gap: 22px; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 24px; letter-spacing: 1px; }
   header span { color: #6fd3cf; font-weight: 600; }
-  header .ip { color: #8fb3b0; font-size: 20px; }
+  header .ip { color: #8fb3b0; font-size: 18px; }
   header .ip b { color: #eef4f3; font-weight: 600; }
-  .help { font-size: 18px; color: #bfd8d5; line-height: 1.6; }
+  .help { font-size: 16px; color: #bfd8d5; line-height: 1.5; }
   .help b { color: #eef4f3; }
-  .help .key { display: inline-block; background: #0b1c2e; border: 1px solid #1f4a66;
-               border-radius: 6px; padding: 1px 7px; font-weight: 600; color: #6fd3cf; }
-  .hint { font-size: 15px; color: #8fb3b0; margin-top: 6px; line-height: 1.45; }
+  .hint { font-size: 14px; color: #8fb3b0; margin-top: 4px; line-height: 1.4; }
+
+  /* The page body: a top row (fills remaining height) + a status row. */
+  .wrap { flex: 1 1 auto; min-height: 0; display: grid;
+          grid-template-columns: 1fr 2fr 1fr; grid-template-rows: 1fr auto;
+          gap: 14px; padding: 14px; }
   /* Top row: controls (left) | camera (wide center) | channels (right). */
-  .wrap { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 22px;
-          padding: 22px; max-width: 2000px; margin: 0 auto; align-items: start; }
-  /* Second row: the status + heading dial, full width under the three. */
-  .row2 { grid-column: 1 / -1; }
-  @media (max-width: 1100px) {
-    .wrap { grid-template-columns: 1fr; }
-  }
-  .card { background: #13324a; border: 1px solid #1f4a66; border-radius: 14px;
-          padding: 22px; }
-  .card h2 { margin: 0 0 16px; font-size: 18px; text-transform: uppercase;
+  .wrap > .card { min-height: 0; overflow: auto; }
+  /* Second row: the status + heading dial, full width, only as tall as needed. */
+  .row2 { grid-column: 1 / -1; overflow: visible; }
+
+  .card { background: #13324a; border: 1px solid #1f4a66; border-radius: 12px;
+          padding: 14px 16px; }
+  .card h2 { margin: 0 0 10px; font-size: 16px; text-transform: uppercase;
              letter-spacing: 2px; color: #6fd3cf; font-weight: 600; }
-  img.video { width: 100%; border-radius: 10px; background: #000; display: block; }
-  .stat-row { display: flex; gap: 18px; flex-wrap: wrap; }
-  .stat { flex: 1; min-width: 150px; background: #0e2439; border-radius: 10px;
-          padding: 16px 18px; }
-  .stat .label { font-size: 15px; color: #8fb3b0; text-transform: uppercase;
+  /* Camera cell: center the video and scale it to fit the cell's height. */
+  .camera-card { display: flex; flex-direction: column; }
+  img.video { flex: 1 1 auto; min-height: 0; width: 100%; height: 100%;
+              object-fit: contain; border-radius: 8px; background: #000; display: block; }
+  .stat-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: stretch; }
+  .stat { flex: 1; min-width: 140px; background: #0e2439; border-radius: 10px;
+          padding: 12px 14px; }
+  .stat .label { font-size: 14px; color: #8fb3b0; text-transform: uppercase;
                  letter-spacing: 1px; }
-  .stat .value { font-size: 34px; font-weight: 600; margin-top: 6px; }
+  .stat .value { font-size: 28px; font-weight: 600; margin-top: 4px; }
   table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid #1f4a66;
-           font-size: 20px; }
-  th { color: #8fb3b0; font-weight: 600; font-size: 15px; text-transform: uppercase; }
-  .bar { height: 10px; background: #0b1c2e; border-radius: 5px; overflow: hidden; margin-top: 6px; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid #1f4a66;
+           font-size: 18px; }
+  th { color: #8fb3b0; font-weight: 600; font-size: 14px; text-transform: uppercase; }
+  .bar { height: 9px; background: #0b1c2e; border-radius: 5px; overflow: hidden; margin-top: 5px; }
   .bar > div { height: 100%; background: #6fd3cf; width: 0; transition: width .15s; }
-  .pill { display: inline-block; padding: 7px 16px; border-radius: 999px;
-          font-size: 18px; font-weight: 600; }
+  .pill { display: inline-block; padding: 6px 14px; border-radius: 999px;
+          font-size: 17px; font-weight: 600; }
   .on { background: #15803d; color: #eafff0; }
   .off { background: #334155; color: #cbd5e1; }
   .badges { display: flex; gap: 14px; }
   svg text { fill: #eef4f3; }
   .stale { opacity: .45; }
+  /* If the window is small, let it scroll rather than clip badly. */
+  @media (max-width: 1100px) {
+    body { height: auto; overflow: auto; }
+    .wrap { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -150,7 +162,7 @@ PAGE = """<!doctype html>
   </div>
 
   <!-- CENTER: the camera video -->
-  <div class="card">
+  <div class="card camera-card">
     <h2>Camera</h2>
     <img class="video" id="camera" alt="ROV camera stream">
   </div>
@@ -178,7 +190,7 @@ PAGE = """<!doctype html>
         <div class="value" id="vert">--</div></div>
       <div class="stat" style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center">
         <div class="label" style="align-self:flex-start">Heading dial</div>
-        <svg id="dial" width="200" height="200" viewBox="0 0 220 220">
+        <svg id="dial" width="150" height="150" viewBox="0 0 220 220">
           <circle cx="110" cy="110" r="96" fill="#0e2439" stroke="#1f4a66" stroke-width="2"/>
           <circle cx="110" cy="110" r="4" fill="#6fd3cf"/>
           <line id="driveArrow" x1="110" y1="110" x2="110" y2="30"
