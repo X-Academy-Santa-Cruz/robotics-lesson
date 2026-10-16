@@ -348,7 +348,22 @@ enable_i2c() {
         warn "Could not find the boot config file; if i2cdetect finds no bus, enable I2C manually (e.g. 'sudo raspi-config' -> Interface -> I2C)."
     fi
 
-    # Let the student's user reach the I2C bus without sudo.
+    # Let the student's user reach the I2C bus without sudo, via the 'i2c'
+    # group. Raspberry Pi OS ships this group; Ubuntu may not create it until
+    # the i2c udev rules are in place, and "usermod -aG i2c" fails if the group
+    # does not exist -- so create it first if needed.
+    if ! getent group i2c >/dev/null 2>&1; then
+        groupadd i2c && info "Created the 'i2c' group."
+    fi
+    # Make sure the I2C device nodes are owned by that group (Raspberry Pi OS
+    # does this with a udev rule; Ubuntu often does not). Install a rule so
+    # /dev/i2c-* is group-accessible on every boot.
+    if [[ ! -f /etc/udev/rules.d/99-i2c.rules ]]; then
+        echo 'KERNEL=="i2c-[0-9]*", GROUP="i2c", MODE="0660"' > /etc/udev/rules.d/99-i2c.rules
+        udevadm control --reload-rules 2>/dev/null || true
+        udevadm trigger --subsystem-match=i2c-dev 2>/dev/null || true
+        info "Installed a udev rule giving the 'i2c' group access to /dev/i2c-*."
+    fi
     if ! id -nG "$TARGET_USER" | grep -qw i2c; then
         usermod -aG i2c "$TARGET_USER"
         info "Added $TARGET_USER to the 'i2c' group (log out and back in to apply)."
