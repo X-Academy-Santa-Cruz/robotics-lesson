@@ -140,7 +140,11 @@ install_apt_packages() {
     # curl and ca-certificates are needed by the Chrome and PyCharm steps.
     # net-tools provides netstat/ifconfig, handy for checking which ports
     # the ROV programs are listening on (e.g. netstat -pant | grep 8000).
-    apt-get -y install emacs git openssh-server curl ca-certificates net-tools
+    # gnome-terminal is the terminal we pin to the dock and configure; Ubuntu
+    # Desktop ships it, but install it explicitly so this works on a minimal
+    # install too.
+    apt-get -y install emacs git openssh-server curl ca-certificates net-tools \
+        gnome-terminal
 
     # Start the SSH server now and on every boot.
     systemctl enable --now ssh
@@ -389,6 +393,68 @@ EOF
     fi
 }
 
+configure_terminal() {
+    # Configure GNOME Terminal for the lessons:
+    #   * disable the audible bell (no beeping in class),
+    #   * don't reopen new terminals/tabs in the previous working directory,
+    #   * set the font size to 18 (readable on a classroom display).
+    # GNOME Terminal keeps per-profile settings in dconf under a profile UUID.
+    # We apply everything in the student's live session over their user D-Bus,
+    # so it takes effect immediately; a fresh Ubuntu install has one default
+    # profile, which is what we configure.
+    local uid bus
+    uid="$(id -u "$TARGET_USER" 2>/dev/null)"
+    [[ -n "$uid" ]] || { warn "No UID for $TARGET_USER; skipping terminal config."; return 1; }
+    bus="unix:path=/run/user/${uid}/bus"
+
+    if ! sudo -u "$TARGET_USER" bash -lc 'command -v gsettings >/dev/null' 2>/dev/null; then
+        warn "gsettings not found; cannot configure GNOME Terminal."
+        return 1
+    fi
+
+    sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$bus" bash -s <<'TERMCFG'
+set -e
+# The list of profiles and the default profile UUID.
+prof="$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d "'")"
+if [ -z "$prof" ]; then
+    # Fall back to the first profile in the list.
+    prof="$(gsettings get org.gnome.Terminal.ProfilesList list 2>/dev/null \
+            | tr -d "[]' " | cut -d, -f1)"
+fi
+if [ -z "$prof" ]; then
+    echo "    (no GNOME Terminal profile found; is gnome-terminal installed?)"
+    exit 0
+fi
+base="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:${prof}/"
+# Disable the bell.
+gsettings set "$base" audible-bell false
+# Font size 18 (turn off "use the system fixed-width font" first).
+gsettings set "$base" use-system-font false
+gsettings set "$base" font 'Monospace 18'
+echo "    configured profile $prof (bell off, font 18)"
+TERMCFG
+
+    # "Never save the existing directory": GNOME Terminal opens a new tab/window
+    # in the previous terminal's working directory via the VTE shell
+    # integration (/etc/profile.d/vte-*.sh, which sets PROMPT_COMMAND to report
+    # the cwd with OSC 7). Disable that integration for the student so new
+    # terminals always start in $HOME.
+    local bashrc="/home/${TARGET_USER}/.bashrc"
+    if ! grep -q 'ROV: do not track the terminal working directory' "$bashrc" 2>/dev/null; then
+        cat >> "$bashrc" <<'RC'
+
+# ROV: do not track the terminal working directory, so a new terminal or tab
+# always opens in the home directory instead of the last one used.
+unset PROMPT_COMMAND
+__vte_osc7() { :; }
+RC
+        chown "$TARGET_USER:$TARGET_USER" "$bashrc" 2>/dev/null || true
+        info "New terminals will open in the home directory (not the last one)."
+    fi
+
+    info "Configured GNOME Terminal (bell off, font 18, no directory tracking)."
+}
+
 disable_screensaver() {
     # Keep the Pi's screen on. A student watching the live camera / dashboard
     # should never have the display blank or a screensaver kick in. Different
@@ -613,8 +679,14 @@ pin_to_dock() {
     local chrome_desktop="google-chrome.desktop"
     local pycharm_desktop="pycharm.desktop"
 
-    # Only pin apps that actually installed.
+    # Only pin apps that actually installed. Terminal first (students use it
+    # most), then PyCharm, then Chrome.
     local -a wanted=()
+    local term_desktop=""
+    for t in org.gnome.Terminal.desktop gnome-terminal.desktop; do
+        if [[ -f "/usr/share/applications/$t" ]]; then term_desktop="$t"; break; fi
+    done
+    [[ -n "$term_desktop" ]] && wanted+=("$term_desktop")
     [[ -f "/usr/share/applications/$pycharm_desktop" ]] && wanted+=("$pycharm_desktop")
     if [[ -f "/usr/share/applications/$chrome_desktop" ]]; then
         wanted+=("$chrome_desktop")
@@ -623,7 +695,7 @@ pin_to_dock() {
         wanted+=("$chrome_desktop")
     fi
     if (( ${#wanted[@]} == 0 )); then
-        info "Neither app is installed yet; nothing to pin."
+        info "None of Terminal/PyCharm/Chrome found yet; nothing to pin."
         return 0
     fi
 
@@ -803,7 +875,7 @@ print_summary() {
 
     echo
     info "All done. A reboot is recommended (also applies the I2C changes and"
-    info "shows the pinned PyCharm and Chrome icons on the dock/taskbar):"
+    info "shows the pinned Terminal, PyCharm and Chrome icons on the dock):"
     info "    sudo reboot"
     info "If you were just added to the 'i2c' group, log out and back in too."
     echo
@@ -835,8 +907,9 @@ run_step "Installing the I2C sensor libraries"            install_sensor_libs
 run_step "Enabling the I2C bus"                           enable_i2c
 run_step "Allowing passwordless sudo reboot"               allow_passwordless_reboot
 run_step "Disabling the screen saver / blanking"           disable_screensaver
+run_step "Configuring GNOME Terminal"                      configure_terminal
 run_step "Installing Google Chrome"                       install_chrome
 run_step "Installing PyCharm"                             install_pycharm
-run_step "Pinning PyCharm and Chrome to the dock"         pin_to_dock
+run_step "Pinning Terminal, PyCharm, Chrome to the dock"    pin_to_dock
 
 print_summary
