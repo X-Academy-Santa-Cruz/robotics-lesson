@@ -187,6 +187,17 @@ create_venv() {
     sudo -u "$TARGET_USER" "$VENV_PIP" install --upgrade pip setuptools wheel || \
         warn "Could not upgrade pip/setuptools/wheel in the venv (continuing)."
 
+    # Install the pure-Python libraries that EVERY lesson program imports
+    # (click for the command-line options, Flask for the camera/dashboard web
+    # servers) directly into the venv. These also exist as apt packages
+    # (python3-click, python3-flask) and are visible through
+    # --system-site-packages, but installing them here too guarantees they are
+    # importable from the venv even if the apt packages are missing or the
+    # system-site-packages path does not pick them up -- which is what caused
+    # "ModuleNotFoundError: No module named 'click'" on some Pis.
+    sudo -u "$TARGET_USER" "$VENV_PIP" install click flask || \
+        warn "Could not install click/flask into the venv (continuing)."
+
     info "Lessons run with this venv active:  source $VENV_DIR/bin/activate"
 }
 
