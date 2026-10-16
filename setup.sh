@@ -195,8 +195,18 @@ create_venv() {
     # importable from the venv even if the apt packages are missing or the
     # system-site-packages path does not pick them up -- which is what caused
     # "ModuleNotFoundError: No module named 'click'" on some Pis.
-    sudo -u "$TARGET_USER" "$VENV_PIP" install click flask || \
-        warn "Could not install click/flask into the venv (continuing)."
+    # Retry a few times so a brief network hiccup does not leave the venv
+    # without click/flask. Fail the step (return 1) if it still cannot install,
+    # so it shows up in the end-of-run summary instead of passing silently.
+    if ! sudo -u "$TARGET_USER" "$VENV_PIP" install --retries 5 --timeout 30 click flask; then
+        warn "Could not install click/flask into the venv."
+        return 1
+    fi
+    # Confirm they are actually importable from the venv before moving on.
+    if ! sudo -u "$TARGET_USER" "$VENV_DIR/bin/python" -c 'import click, flask' >/dev/null 2>&1; then
+        warn "click/flask still not importable from the venv after install."
+        return 1
+    fi
 
     info "Lessons run with this venv active:  source $VENV_DIR/bin/activate"
 }
@@ -476,6 +486,18 @@ print_summary() {
     else
         info "[FAIL] virtual environment was not created"
     fi
+
+    # Confirm the shared libraries every lesson imports are importable from the
+    # venv (this is what the ROV programs actually use).
+    local venv_py_chk="$VENV_DIR/bin/python"
+    local mod
+    for mod in click flask cv2; do
+        if [[ -x "$venv_py_chk" ]] && sudo -u "$TARGET_USER" "$venv_py_chk" -c "import $mod" >/dev/null 2>&1; then
+            info "[ OK ] $mod (importable from the venv)"
+        else
+            info "[FAIL] $mod is NOT importable from the venv  ->  fix with:  $VENV_PIP install $mod"
+        fi
+    done
 
     # Check the pip-only libraries inside the venv (not the system Python).
     local venv_py="$VENV_DIR/bin/python"
