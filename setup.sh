@@ -23,8 +23,10 @@
 #      (git clone + pip install into the venv) for the thrusters and gripper
 #   6. Installs the I2C temperature-sensor libraries (pip-only) into the venv
 #   7. Enables the I2C bus and adds you to the i2c group so the Servo HAT works
-#   8. Installs Google Chrome (official ARM64 build from Google)
-#   9. Installs PyCharm (latest ARM64 release from JetBrains) into /opt/pycharm
+#   8. Disables the screen saver / display blanking so the camera and dashboard
+#      stay visible
+#   9. Installs Google Chrome (official ARM64 build from Google)
+#  10. Installs PyCharm (latest ARM64 release from JetBrains) into /opt/pycharm
 #
 # After it runs, activate the venv before running the lessons:
 #   source ~/robotics-lesson/.venv/bin/activate
@@ -372,6 +374,81 @@ EOF
     fi
 }
 
+disable_screensaver() {
+    # Keep the Pi's screen on. A student watching the live camera / dashboard
+    # should never have the display blank or a screensaver kick in. Different
+    # Pi images use different display stacks, so cover each one; a stack that is
+    # not present is simply skipped.
+    local did=0
+
+    # --- Raspberry Pi OS: the official switch (works for both the X11 and the
+    #     Wayland desktops, and for console blanking). -------------------------
+    if command -v raspi-config >/dev/null 2>&1; then
+        # do_blanking 1 == turn screen blanking OFF.
+        if raspi-config nonint do_blanking 1 >/dev/null 2>&1; then
+            info "Disabled screen blanking via raspi-config (Raspberry Pi OS)."
+            did=1
+        fi
+    fi
+
+    # --- Raspberry Pi OS Wayland (wayfire): turn the idle/dpms plugins off ----
+    local wf="/home/${TARGET_USER}/.config/wayfire.ini"
+    if [[ -f "$wf" ]]; then
+        if grep -q '^\[idle\]' "$wf" 2>/dev/null; then
+            sudo -u "$TARGET_USER" sed -i 's/^dpms_timeout.*/dpms_timeout = -1/' "$wf" 2>/dev/null || true
+        fi
+        did=1
+    fi
+
+    # --- X11 / LXDE desktops: disable DPMS and the X screensaver at login -----
+    # xset lives per-session, so put the commands in the user's autostart and
+    # .xprofile so they run on every graphical login.
+    local xcmds='xset s off; xset s noblank; xset -dpms'
+    local autostart="/home/${TARGET_USER}/.config/lxsession/LXDE-pi/autostart"
+    if [[ -d "/home/${TARGET_USER}/.config/lxsession" ]] || command -v lxsession >/dev/null 2>&1; then
+        sudo -u "$TARGET_USER" mkdir -p "$(dirname "$autostart")"
+        for c in '@xset s off' '@xset s noblank' '@xset -dpms'; do
+            grep -qxF "$c" "$autostart" 2>/dev/null || echo "$c" | sudo -u "$TARGET_USER" tee -a "$autostart" >/dev/null
+        done
+        info "Disabled X screensaver/DPMS in the LXDE autostart."
+        did=1
+    fi
+    # .xprofile is read by most X display managers (lightdm) at login.
+    local xprofile="/home/${TARGET_USER}/.xprofile"
+    if ! grep -q 'xset s off' "$xprofile" 2>/dev/null; then
+        printf '\n# Keep the screen on for the ROV camera/dashboard\n%s\n' "$xcmds" \
+            | sudo -u "$TARGET_USER" tee -a "$xprofile" >/dev/null
+    fi
+
+    # --- GNOME (Ubuntu Desktop): turn off the idle blank and screensaver ------
+    if sudo -u "$TARGET_USER" bash -lc 'command -v gsettings >/dev/null' 2>/dev/null; then
+        local uid bus
+        uid="$(id -u "$TARGET_USER")"
+        bus="unix:path=/run/user/${uid}/bus"
+        sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$bus" bash -lc '
+            gsettings set org.gnome.desktop.session idle-delay 0 2>/dev/null
+            gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null
+            gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null
+            gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type nothing 2>/dev/null
+        ' && { info "Disabled GNOME idle blank / screensaver."; did=1; }
+    fi
+
+    # --- Text console (no desktop): stop the framebuffer going blank ----------
+    # consoleblank=0 on the kernel command line disables console blanking at boot.
+    local cmdline=""
+    for f in /boot/firmware/cmdline.txt /boot/cmdline.txt; do
+        [[ -f "$f" ]] && { cmdline="$f"; break; }
+    done
+    if [[ -n "$cmdline" ]] && ! grep -q 'consoleblank=0' "$cmdline"; then
+        # cmdline.txt must stay a single line; append the parameter to it.
+        sed -i 's/$/ consoleblank=0/' "$cmdline"
+        info "Disabled console blanking in $cmdline (takes effect after reboot)."
+        did=1
+    fi
+
+    (( did == 1 )) || warn "No known display stack found; disable the screensaver by hand if the screen blanks."
+}
+
 install_sensor_libs() {
     # Python libraries for the I2C temperature-sensor (STTS22H) lesson:
     #   smbus2                 register-level I2C (temperature_smbus2.py)
@@ -677,6 +754,7 @@ run_step "Installing the SparkFun Pi Servo HAT library"   install_servo_hat
 run_step "Installing the I2C sensor libraries"            install_sensor_libs
 run_step "Enabling the I2C bus"                           enable_i2c
 run_step "Allowing passwordless sudo reboot"               allow_passwordless_reboot
+run_step "Disabling the screen saver / blanking"           disable_screensaver
 run_step "Installing Google Chrome"                       install_chrome
 run_step "Installing PyCharm"                             install_pycharm
 run_step "Pinning PyCharm and Chrome to the dock"         pin_to_dock
