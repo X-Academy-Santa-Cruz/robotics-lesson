@@ -158,9 +158,25 @@ install_python_modules() {
     #   python3-matplotlib  matplotlib -- plotting the I2C temperature sensor
     #   python3-tk      Tk -- the GUI backend matplotlib uses to open a live
     #                   plot window (without it, the window never draws)
+    #
+    # Build tools, needed so the pip-only sensor library adafruit-lgpio can
+    # compile its C extension into the venv later (without these it fails with
+    # "error: command 'swig' failed: No such file or directory"):
+    #   build-essential  the C compiler and make
+    #   python3-dev      the Python C headers the extension builds against
+    #   swig             generates the C wrapper adafruit-lgpio compiles
+    #   liblgpio-dev     the lgpio C library + headers the extension links to
     apt-get -y install \
         python3-pip python3-venv python3-opencv python3-flask python3-click \
-        python3-pygame python3-smbus i2c-tools python3-matplotlib python3-tk
+        python3-pygame python3-smbus i2c-tools python3-matplotlib python3-tk \
+        build-essential python3-dev swig
+
+    # liblgpio-dev provides the lgpio headers adafruit-lgpio links against.
+    # It is not in every Pi OS image's repos, so install it best-effort: if the
+    # package is unknown, the compile usually still finds lgpio another way, and
+    # if not, the sensor-libs step will report the real failure.
+    apt-get -y install liblgpio-dev 2>/dev/null || \
+        warn "liblgpio-dev not available from apt (continuing; adafruit-lgpio may still build)."
 }
 
 create_venv() {
