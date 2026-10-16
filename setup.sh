@@ -250,6 +250,25 @@ create_venv() {
         return 1
     fi
 
+    # On Debian / Raspberry Pi OS, apt installs Python modules into
+    # /usr/lib/python3/dist-packages, but a venv's --system-site-packages does
+    # NOT add that directory to the path -- so apt's OpenCV (cv2), pygame, etc.
+    # end up installed yet invisible inside the venv. If the venv can't already
+    # import cv2 but the system python can, drop a .pth file that puts
+    # dist-packages on the venv's path. Only do this when dist-packages really
+    # holds cv2, so we never add a bogus path.
+    if ! sudo -u "$TARGET_USER" "$VENV_PY" -c 'import cv2' >/dev/null 2>&1; then
+        local dist="/usr/lib/python3/dist-packages"
+        if ls "$dist"/cv2*.so >/dev/null 2>&1 || [[ -d "$dist/cv2" ]]; then
+            local site_dir
+            site_dir="$(sudo -u "$TARGET_USER" "$VENV_PY" -c 'import sysconfig;print(sysconfig.get_path("purelib"))' 2>/dev/null)"
+            if [[ -n "$site_dir" && -d "$site_dir" ]]; then
+                echo "$dist" | sudo -u "$TARGET_USER" tee "$site_dir/dist-packages.pth" >/dev/null
+                info "Added $dist to the venv path (so apt's OpenCV/pygame are visible)."
+            fi
+        fi
+    fi
+
     # Make sure the venv can BUILD packages from source (the SparkFun library
     # is installed from a git checkout, which needs a current pip + setuptools +
     # wheel). Use "python -m pip" throughout, which works even when the
@@ -575,23 +594,17 @@ print_summary() {
     if [[ -x "$venv_py_chk" ]] && sudo -u "$TARGET_USER" "$venv_py_chk" -c "import cv2" >/dev/null 2>&1; then
         info "[ OK ] cv2 (OpenCV, from python3-opencv via system-site-packages)"
     else
-        # cv2 missing from the venv is almost always a Python-version mismatch:
-        # apt's python3-opencv is built for the SYSTEM python3, but the venv was
-        # made with a DIFFERENT python3 (e.g. a 3.14 build), and
-        # --system-site-packages only exposes modules built for the venv's exact
-        # version. Report the versions so the cause is obvious.
-        local sys_pyver venv_pyver
-        sys_pyver="$(python3 -c 'import sys;print("%d.%d"%sys.version_info[:2])' 2>/dev/null)"
-        venv_pyver="$(sudo -u "$TARGET_USER" "$venv_py_chk" -c 'import sys;print("%d.%d"%sys.version_info[:2])' 2>/dev/null)"
         info "[FAIL] cv2 is NOT importable from the venv"
-        info "       system python3 is ${sys_pyver:-?}, venv python is ${venv_pyver:-?}."
-        if [[ -n "$sys_pyver" && -n "$venv_pyver" && "$sys_pyver" != "$venv_pyver" ]]; then
-            info "       These differ, so the venv cannot see apt's python3-opencv."
-            info "       Rebuild the venv with the system python3:"
-            info "         rm -rf $VENV_DIR && sudo apt-get install -y python3-opencv && ./setup.sh"
+        if python3 -c 'import cv2' >/dev/null 2>&1; then
+            # cv2 works for the system python but not the venv: apt installed it
+            # in /usr/lib/python3/dist-packages, which the venv does not have on
+            # its path. The create_venv step adds a dist-packages.pth for this;
+            # if it is still missing, add it by hand.
+            info "       OpenCV is installed but not on the venv's path. Fix with:"
+            info "         echo /usr/lib/python3/dist-packages > \\"
+            info "           \$($venv_py_chk -c 'import sysconfig;print(sysconfig.get_path(\"purelib\"))')/dist-packages.pth"
         else
-            info "       Install OpenCV:  sudo apt-get install -y python3-opencv"
-            info "       (or into the venv:  $venv_py_chk -m pip install opencv-python-headless)"
+            info "       OpenCV is not installed. Fix with:  sudo apt-get install -y python3-opencv"
         fi
     fi
 
