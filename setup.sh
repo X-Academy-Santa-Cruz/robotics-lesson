@@ -660,6 +660,25 @@ else:
     print("   ", app, "already pinned")
 PYIN
         done
+
+        # Also set a SYSTEM-WIDE default favorites list via dconf, so the apps
+        # appear in the dock on every login even if setup ran over SSH with no
+        # live GNOME session (the gsettings write above would no-op then). This
+        # is a default, not a lock, so students can still add/remove favorites.
+        local fav_list
+        fav_list="$(printf "'%s', " "${wanted[@]}")"
+        fav_list="[${fav_list%, }]"
+        mkdir -p /etc/dconf/profile /etc/dconf/db/local.d
+        if [[ ! -f /etc/dconf/profile/user ]]; then
+            printf 'user-db:user\nsystem-db:local\n' > /etc/dconf/profile/user
+        fi
+        cat > /etc/dconf/db/local.d/00-rov-dock <<DCONF
+# X Academy ROV: default dock favorites (PyCharm and Chrome)
+[org/gnome/shell]
+favorite-apps=${fav_list}
+DCONF
+        dconf update 2>/dev/null || true
+        info "Set PyCharm/Chrome as default dock favorites (system-wide)."
         ran=1
     fi
 
