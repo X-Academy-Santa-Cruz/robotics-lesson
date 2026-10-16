@@ -421,16 +421,62 @@ disable_screensaver() {
     fi
 
     # --- GNOME (Ubuntu Desktop): turn off the idle blank and screensaver ------
-    if sudo -u "$TARGET_USER" bash -lc 'command -v gsettings >/dev/null' 2>/dev/null; then
+    # Apply it two ways so it sticks no matter when setup runs:
+    #   (a) to the student's LIVE session with gsettings (takes effect now), and
+    #   (b) as a SYSTEM-WIDE dconf default + lock, so it holds on every login
+    #       (including the greeter) even if setup ran over SSH with no session.
+    if command -v gsettings >/dev/null 2>&1 || command -v dconf >/dev/null 2>&1; then
+        # (a) live session, best-effort
         local uid bus
-        uid="$(id -u "$TARGET_USER")"
-        bus="unix:path=/run/user/${uid}/bus"
-        sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$bus" bash -lc '
-            gsettings set org.gnome.desktop.session idle-delay 0 2>/dev/null
-            gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null
-            gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null
-            gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type nothing 2>/dev/null
-        ' && { info "Disabled GNOME idle blank / screensaver."; did=1; }
+        uid="$(id -u "$TARGET_USER" 2>/dev/null)"
+        if [[ -n "$uid" ]]; then
+            bus="unix:path=/run/user/${uid}/bus"
+            sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$bus" bash -lc '
+                gsettings set org.gnome.desktop.session idle-delay 0
+                gsettings set org.gnome.desktop.screensaver idle-activation-enabled false
+                gsettings set org.gnome.desktop.screensaver lock-enabled false
+                gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type nothing
+                gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type nothing
+            ' >/dev/null 2>&1 || true
+        fi
+
+        # (b) system-wide default for all users, via dconf db + a lock so it
+        #     cannot drift back. Lives in /etc/dconf.
+        mkdir -p /etc/dconf/profile /etc/dconf/db/local.d/locks
+        if [[ ! -f /etc/dconf/profile/user ]]; then
+            printf 'user-db:user\nsystem-db:local\n' > /etc/dconf/profile/user
+        fi
+        cat > /etc/dconf/db/local.d/00-rov-no-blank <<'DCONF'
+# X Academy ROV: keep the screen on (no blank, no screensaver, no auto-suspend)
+[org/gnome/desktop/session]
+idle-delay=uint32 0
+
+[org/gnome/desktop/screensaver]
+idle-activation-enabled=false
+lock-enabled=false
+
+[org/gnome/settings-daemon/plugins/power]
+sleep-inactive-ac-type='nothing'
+sleep-inactive-battery-type='nothing'
+idle-dim=false
+DCONF
+        cat > /etc/dconf/db/local.d/locks/00-rov-no-blank <<'DLOCK'
+/org/gnome/desktop/session/idle-delay
+/org/gnome/desktop/screensaver/idle-activation-enabled
+/org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-type
+/org/gnome/settings-daemon/plugins/power/sleep-inactive-battery-type
+DLOCK
+        dconf update 2>/dev/null || true
+        info "Disabled GNOME idle blank / screensaver (live session + system-wide)."
+        did=1
+    fi
+
+    # --- Never auto-suspend (any desktop): mask the systemd sleep targets -----
+    # A kiosk-style ROV station should stay awake even if a power setting slips
+    # through. This is safe on a Pi, which has no reason to suspend.
+    if command -v systemctl >/dev/null 2>&1; then
+        systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target >/dev/null 2>&1 \
+            && { info "Masked systemd sleep/suspend targets (machine stays awake)."; did=1; }
     fi
 
     # --- Text console (no desktop): stop the framebuffer going blank ----------
