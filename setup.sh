@@ -192,9 +192,38 @@ create_venv() {
     # lessons only need the venv active -- nothing has to be pip-installed twice.
     local VENV_PY="${VENV_DIR}/bin/python"
 
+    # Pick the interpreter to build the venv FROM. --system-site-packages only
+    # exposes apt modules built for the venv's exact Python version, so the venv
+    # must use the same python3 that owns the apt packages (OpenCV, pygame,
+    # etc.). On some images several python3.X are installed and a bare "python3"
+    # can resolve to a newer one (e.g. 3.14) that apt's python3-opencv was NOT
+    # built for -- then cv2 is invisible in the venv. Prefer the interpreter
+    # that can actually import cv2; fall back to python3.
+    local BASE_PY="python3"
+    local cand
+    for cand in python3 /usr/bin/python3 python3.11 python3.12 python3.13; do
+        if command -v "$cand" >/dev/null 2>&1 && "$cand" -c 'import cv2' >/dev/null 2>&1; then
+            BASE_PY="$cand"
+            break
+        fi
+    done
+    info "Building the venv from: $BASE_PY ($("$BASE_PY" -V 2>&1))"
+
+    # If a venv already exists but was built with a DIFFERENT Python than
+    # BASE_PY, it cannot see the apt modules -- rebuild it from BASE_PY.
+    if [[ -d "$VENV_DIR" ]]; then
+        local want have
+        want="$("$BASE_PY" -c 'import sys;print("%d.%d"%sys.version_info[:2])' 2>/dev/null)"
+        have="$(sudo -u "$TARGET_USER" "$VENV_PY" -c 'import sys;print("%d.%d"%sys.version_info[:2])' 2>/dev/null)"
+        if [[ -n "$want" && -n "$have" && "$want" != "$have" ]]; then
+            warn "Existing venv is Python $have but apt modules are built for $want; rebuilding it."
+            rm -rf "$VENV_DIR"
+        fi
+    fi
+
     if [[ ! -d "$VENV_DIR" ]]; then
         info "Creating the shared virtual environment in $VENV_DIR ..."
-        sudo -u "$TARGET_USER" python3 -m venv --system-site-packages "$VENV_DIR"
+        sudo -u "$TARGET_USER" "$BASE_PY" -m venv --system-site-packages "$VENV_DIR"
     else
         info "Virtual environment already exists in $VENV_DIR."
     fi
@@ -212,7 +241,7 @@ create_venv() {
     if ! sudo -u "$TARGET_USER" "$VENV_PY" -m pip --version >/dev/null 2>&1; then
         warn "venv still has no pip; rebuilding the virtual environment ..."
         rm -rf "$VENV_DIR"
-        sudo -u "$TARGET_USER" python3 -m venv --system-site-packages "$VENV_DIR"
+        sudo -u "$TARGET_USER" "$BASE_PY" -m venv --system-site-packages "$VENV_DIR"
         sudo -u "$TARGET_USER" "$VENV_PY" -m ensurepip --upgrade >/dev/null 2>&1 || true
     fi
     if ! sudo -u "$TARGET_USER" "$VENV_PY" -m pip --version >/dev/null 2>&1; then
