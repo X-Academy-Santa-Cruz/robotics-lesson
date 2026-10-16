@@ -174,6 +174,8 @@ create_venv() {
     # --system-site-packages lets code running in the venv still see the
     # apt-installed modules above (OpenCV, Flask, pygame, matplotlib), so the
     # lessons only need the venv active -- nothing has to be pip-installed twice.
+    local VENV_PY="${VENV_DIR}/bin/python"
+
     if [[ ! -d "$VENV_DIR" ]]; then
         info "Creating the shared virtual environment in $VENV_DIR ..."
         sudo -u "$TARGET_USER" python3 -m venv --system-site-packages "$VENV_DIR"
@@ -181,10 +183,34 @@ create_venv() {
         info "Virtual environment already exists in $VENV_DIR."
     fi
 
+    # The venv MUST have its own pip. On some Raspberry Pi OS images
+    # "python3 -m venv" produces a venv with no pip (the ensurepip data is
+    # missing), which later makes "$VENV_DIR/bin/pip" not exist and every
+    # install below silently do nothing -- the bug that left the venv without
+    # click. Make sure pip is present; bootstrap it, and if that still fails,
+    # rebuild the venv once with pip included.
+    if ! sudo -u "$TARGET_USER" "$VENV_PY" -m pip --version >/dev/null 2>&1; then
+        info "venv has no pip; bootstrapping it with ensurepip ..."
+        sudo -u "$TARGET_USER" "$VENV_PY" -m ensurepip --upgrade >/dev/null 2>&1 || true
+    fi
+    if ! sudo -u "$TARGET_USER" "$VENV_PY" -m pip --version >/dev/null 2>&1; then
+        warn "venv still has no pip; rebuilding the virtual environment ..."
+        rm -rf "$VENV_DIR"
+        sudo -u "$TARGET_USER" python3 -m venv --system-site-packages "$VENV_DIR"
+        sudo -u "$TARGET_USER" "$VENV_PY" -m ensurepip --upgrade >/dev/null 2>&1 || true
+    fi
+    if ! sudo -u "$TARGET_USER" "$VENV_PY" -m pip --version >/dev/null 2>&1; then
+        warn "Could not get a working pip inside the venv. Install python3-venv"
+        warn "and its ensurepip data (sudo apt-get install python3-venv), then re-run."
+        return 1
+    fi
+
     # Make sure the venv can BUILD packages from source (the SparkFun library
     # is installed from a git checkout, which needs a current pip + setuptools +
-    # wheel). Not fatal if we're offline and they're already present.
-    sudo -u "$TARGET_USER" "$VENV_PIP" install --upgrade pip setuptools wheel || \
+    # wheel). Use "python -m pip" throughout, which works even when the
+    # bin/pip wrapper script is missing. Not fatal if we're offline and they're
+    # already present.
+    sudo -u "$TARGET_USER" "$VENV_PY" -m pip install --upgrade pip setuptools wheel || \
         warn "Could not upgrade pip/setuptools/wheel in the venv (continuing)."
 
     # Install the pure-Python libraries that EVERY lesson program imports
@@ -198,12 +224,12 @@ create_venv() {
     # Retry a few times so a brief network hiccup does not leave the venv
     # without click/flask. Fail the step (return 1) if it still cannot install,
     # so it shows up in the end-of-run summary instead of passing silently.
-    if ! sudo -u "$TARGET_USER" "$VENV_PIP" install --retries 5 --timeout 30 click flask; then
+    if ! sudo -u "$TARGET_USER" "$VENV_PY" -m pip install --retries 5 --timeout 30 click flask; then
         warn "Could not install click/flask into the venv."
         return 1
     fi
     # Confirm they are actually importable from the venv before moving on.
-    if ! sudo -u "$TARGET_USER" "$VENV_DIR/bin/python" -c 'import click, flask' >/dev/null 2>&1; then
+    if ! sudo -u "$TARGET_USER" "$VENV_PY" -c 'import click, flask' >/dev/null 2>&1; then
         warn "click/flask still not importable from the venv after install."
         return 1
     fi
@@ -230,7 +256,7 @@ install_servo_hat() {
         rm -rf "$dir"
     fi
 
-    sudo -u "$TARGET_USER" "$VENV_PIP" install "git+${SERVO_HAT_REPO}"
+    sudo -u "$TARGET_USER" "${VENV_DIR}/bin/python" -m pip install "git+${SERVO_HAT_REPO}"
 }
 
 enable_i2c() {
@@ -291,7 +317,7 @@ install_sensor_libs() {
     #                          (without it, "import board" fails with
     #                           ModuleNotFoundError: No module named 'lgpio')
     # These are pip-only (no apt package), so they go into the shared venv.
-    sudo -u "$TARGET_USER" "$VENV_PIP" install \
+    sudo -u "$TARGET_USER" "${VENV_DIR}/bin/python" -m pip install \
         smbus2 circuitpython-stts22h adafruit-blinka adafruit-lgpio
 }
 
@@ -495,7 +521,7 @@ print_summary() {
         if [[ -x "$venv_py_chk" ]] && sudo -u "$TARGET_USER" "$venv_py_chk" -c "import $mod" >/dev/null 2>&1; then
             info "[ OK ] $mod (importable from the venv)"
         else
-            info "[FAIL] $mod is NOT importable from the venv  ->  fix with:  $VENV_PIP install $mod"
+            info "[FAIL] $mod is NOT importable from the venv  ->  fix with:  $VENV_DIR/bin/python -m pip install $mod"
         fi
     done
 
