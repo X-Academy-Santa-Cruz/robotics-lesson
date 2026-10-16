@@ -530,16 +530,41 @@ print_summary() {
     fi
 
     # Confirm the shared libraries every lesson imports are importable from the
-    # venv (this is what the ROV programs actually use).
+    # venv (this is what the ROV programs actually use). click and flask are
+    # pip-installed into the venv; cv2 (OpenCV) comes from the apt package
+    # python3-opencv, seen through --system-site-packages, so each has its own
+    # fix if it is missing.
     local venv_py_chk="$VENV_DIR/bin/python"
     local mod
-    for mod in click flask cv2; do
+    for mod in click flask; do
         if [[ -x "$venv_py_chk" ]] && sudo -u "$TARGET_USER" "$venv_py_chk" -c "import $mod" >/dev/null 2>&1; then
             info "[ OK ] $mod (importable from the venv)"
         else
-            info "[FAIL] $mod is NOT importable from the venv  ->  fix with:  $VENV_DIR/bin/python -m pip install $mod"
+            info "[FAIL] $mod is NOT importable from the venv  ->  fix with:  $venv_py_chk -m pip install $mod"
         fi
     done
+    if [[ -x "$venv_py_chk" ]] && sudo -u "$TARGET_USER" "$venv_py_chk" -c "import cv2" >/dev/null 2>&1; then
+        info "[ OK ] cv2 (OpenCV, from python3-opencv via system-site-packages)"
+    else
+        # cv2 missing from the venv is almost always a Python-version mismatch:
+        # apt's python3-opencv is built for the SYSTEM python3, but the venv was
+        # made with a DIFFERENT python3 (e.g. a 3.14 build), and
+        # --system-site-packages only exposes modules built for the venv's exact
+        # version. Report the versions so the cause is obvious.
+        local sys_pyver venv_pyver
+        sys_pyver="$(python3 -c 'import sys;print("%d.%d"%sys.version_info[:2])' 2>/dev/null)"
+        venv_pyver="$(sudo -u "$TARGET_USER" "$venv_py_chk" -c 'import sys;print("%d.%d"%sys.version_info[:2])' 2>/dev/null)"
+        info "[FAIL] cv2 is NOT importable from the venv"
+        info "       system python3 is ${sys_pyver:-?}, venv python is ${venv_pyver:-?}."
+        if [[ -n "$sys_pyver" && -n "$venv_pyver" && "$sys_pyver" != "$venv_pyver" ]]; then
+            info "       These differ, so the venv cannot see apt's python3-opencv."
+            info "       Rebuild the venv with the system python3:"
+            info "         rm -rf $VENV_DIR && sudo apt-get install -y python3-opencv && ./setup.sh"
+        else
+            info "       Install OpenCV:  sudo apt-get install -y python3-opencv"
+            info "       (or into the venv:  $venv_py_chk -m pip install opencv-python-headless)"
+        fi
+    fi
 
     # Check the pip-only libraries inside the venv (not the system Python).
     local venv_py="$VENV_DIR/bin/python"
