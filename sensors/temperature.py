@@ -16,7 +16,7 @@
 # Press Ctrl+C to stop. Add --no-plot to just print readings (e.g. over SSH
 # with no screen).
 
-import argparse
+import click
 import time
 
 import board
@@ -102,19 +102,21 @@ def plot_loop(sensor, period, window):
         pass
 
 
-def main():
-    ap = argparse.ArgumentParser(description="Read and plot the STTS22H temperature sensor (library version).")
-    ap.add_argument("--period", type=float, default=1.0, help="seconds between readings")
-    ap.add_argument("--window", type=float, default=60.0, help="seconds of history to plot")
-    ap.add_argument("--no-plot", action="store_true", help="print readings instead of plotting")
-    args = ap.parse_args()
-
+@click.command()
+@click.option("--period", type=float, default=1.0, show_default=True,
+              help="Seconds between readings.")
+@click.option("--window", type=float, default=60.0, show_default=True,
+              help="Seconds of history to plot.")
+@click.option("--no-plot", is_flag=True,
+              help="Print readings instead of plotting.")
+def main(period, window, no_plot):
+    """Read and plot the STTS22H temperature sensor (library version)."""
     sensor = make_sensor()
     print("Reading STTS22H... press Ctrl+C to stop.")
-    if args.no_plot:
-        print_loop(sensor, args.period)
+    if no_plot:
+        print_loop(sensor, period)
     else:
-        plot_loop(sensor, args.period, args.window)
+        plot_loop(sensor, period, window)
 
 
 if __name__ == "__main__":

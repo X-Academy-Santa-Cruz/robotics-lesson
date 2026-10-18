@@ -36,7 +36,7 @@ SAFETY (read this)
   THEN in the water.
 """
 
-import argparse
+import click
 import sys
 import time
 from pathlib import Path
@@ -108,21 +108,20 @@ def build_pattern():
     ]
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Drive the ROV through a pattern.")
-    parser.add_argument(
-        "--address", type=lambda s: int(s, 0), default=0x40,
-        help="Pi Servo HAT I2C address (default 0x40)",
-    )
-    parser.add_argument(
-        "--dry-run", action="store_true",
-        help="Print the pattern and the commands WITHOUT touching the thrusters.",
-    )
-    args = parser.parse_args()
-
+@click.command()
+@click.option(
+    "--address", default="0x40", show_default=True,
+    help="Pi Servo HAT I2C address (e.g. 0x40).",
+)
+@click.option(
+    "--dry-run", is_flag=True,
+    help="Print the pattern and the commands WITHOUT touching the thrusters.",
+)
+def main(address, dry_run):
+    """Drive the ROV through a pattern."""
     pattern = build_pattern()
 
-    if args.dry_run:
+    if dry_run:
         # Great for testing your pattern with the AI's help before you ever
         # power the thrusters: it prints what WOULD happen, safely.
         print("DRY RUN - no thrusters will move.\n")
@@ -134,7 +133,7 @@ def main():
         print(f"\nTotal mission time: {total:.1f}s")
         return
 
-    rig = ThrusterRig(i2c_address=args.address)
+    rig = ThrusterRig(i2c_address=int(address, 0))
     try:
         rig.arm()
         run_pattern(rig, pattern)

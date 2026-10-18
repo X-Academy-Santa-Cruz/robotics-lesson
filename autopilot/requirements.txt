@@ -7,3 +7,6 @@
 #
 # Pip-only (no apt package):
 pi-servo-hat              # SparkFun Pi Servo HAT (PCA9685) driver, via thrusters/
+#
+# Provided by apt (installed by setup.sh), so not listed above:
+#   python3-click    click  -- command-line options (--address, --dry-run)

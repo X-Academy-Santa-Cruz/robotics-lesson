@@ -10,3 +10,4 @@ smbus2                    # register-level I2C, no sensor library (temperature_s
 # Provided by apt (installed by setup.sh), so not listed above:
 #   python3-matplotlib   matplotlib -- the live plot of the temperature
 #   python3-smbus        system SMBus bindings / i2c-tools for i2cdetect
+#   python3-click        click -- command-line options (--period, --window, --no-plot)

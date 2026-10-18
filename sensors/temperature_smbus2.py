@@ -17,7 +17,7 @@
 # Press Ctrl+C to stop. Add --no-plot to just print readings (e.g. over SSH
 # with no screen).
 
-import argparse
+import click
 import time
 
 from smbus2 import SMBus
@@ -136,21 +136,24 @@ def plot_loop(bus, period, window):
         pass
 
 
-def main():
-    ap = argparse.ArgumentParser(description="Read and plot the STTS22H temperature sensor.")
-    ap.add_argument("--bus", type=int, default=1, help="I2C bus number (default 1)")
-    ap.add_argument("--period", type=float, default=1.0, help="seconds between readings")
-    ap.add_argument("--window", type=float, default=60.0, help="seconds of history to plot")
-    ap.add_argument("--no-plot", action="store_true", help="print readings instead of plotting")
-    args = ap.parse_args()
-
-    with SMBus(args.bus) as bus:
-        setup_sensor(bus)
+@click.command()
+@click.option("--bus", type=int, default=1, show_default=True,
+              help="I2C bus number.")
+@click.option("--period", type=float, default=1.0, show_default=True,
+              help="Seconds between readings.")
+@click.option("--window", type=float, default=60.0, show_default=True,
+              help="Seconds of history to plot.")
+@click.option("--no-plot", is_flag=True,
+              help="Print readings instead of plotting.")
+def main(bus, period, window, no_plot):
+    """Read and plot the STTS22H temperature sensor."""
+    with SMBus(bus) as smbus:
+        setup_sensor(smbus)
         print("Reading STTS22H... press Ctrl+C to stop.")
-        if args.no_plot:
-            print_loop(bus, args.period)
+        if no_plot:
+            print_loop(smbus, period)
         else:
-            plot_loop(bus, args.period, args.window)
+            plot_loop(smbus, period, window)
 
 
 if __name__ == "__main__":
