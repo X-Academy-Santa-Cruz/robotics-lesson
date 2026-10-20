@@ -63,6 +63,7 @@ project.
 | 4 | Networked Control (Piloting the ROV) | [`control/`](control/lesson.md) |
 | 5 | ROV Dashboard (ties it all together) | [`dashboard/`](dashboard/lesson.md) |
 | 6 | Autonomous Driving — AI-assisted project (capstone) | [`autopilot/`](autopilot/lesson.md) |
+| 7 | Stereo Vision: Measuring Distance and Size with Two Webcams | [`stereo/`](stereo/lesson.md) |
 
 ## Tools
 
