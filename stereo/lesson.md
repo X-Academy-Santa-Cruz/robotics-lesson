@@ -64,7 +64,9 @@ python3 stereo_measure.py list
 
 The first run asks for camera permission. Allow it for Terminal (or PyCharm)
 under System Settings → Privacy & Security → Camera, then run `list` again.
-On most Macs index 0 is the built-in camera, so the two webcams are 1 and 2.
+The script defaults to left = 0 and right = 1. On a Mac with a built-in camera,
+index 0 may be the FaceTime camera and the webcams 1 and 2; if `list` shows
+that, pass `--left 1 --right 2`.
 Plug them into different USB ports if one refuses to open.
 
 macOS does not let OpenCV change a webcam's focus. Lock it with Logitech's
@@ -89,7 +91,7 @@ python3 stereo_measure.py list
 ```
 
 Each camera appears as two `/dev/videoN` entries; use the one that `list`
-prints a size for (usually 0 and 2). Plug each camera into a different port.
+prints a size for (often 0 and 2, in which case pass `--right 2`). Plug each camera into a different port.
 The script locks focus and exposure itself on Linux; if a camera ignores it:
 
 ```bash
@@ -101,7 +103,7 @@ v4l2-ctl -d /dev/video0 -c focus_automatic_continuous=0 -c focus_absolute=0
 **1. Calibrate**
 
 ```bash
-python3 stereo_measure.py calibrate --left 1 --right 2
+python3 stereo_measure.py calibrate
 ```
 
 Hold the checkerboard so both cameras see all of it. Press SPACE when both
@@ -113,7 +115,7 @@ your ruler. Otherwise delete the blurry pairs and go again.
 **2. Measure**
 
 ```bash
-python3 stereo_measure.py measure --left 1 --right 2
+python3 stereo_measure.py measure
 ```
 
 Left-click a point: its distance appears in cm. Click a second point: the

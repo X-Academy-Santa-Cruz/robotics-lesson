@@ -12,16 +12,17 @@ Three modes:
 
 Usage:
   python3 stereo_measure.py list
-  python3 stereo_measure.py calibrate --left 1 --right 2
-  python3 stereo_measure.py measure   --left 1 --right 2
+  python3 stereo_measure.py calibrate              # left = 0, right = 1
+  python3 stereo_measure.py measure --left 1 --right 2   # override if needed
 
 Setup on a Mac:
   python3 -m venv .venv && source .venv/bin/activate
   pip install -r requirements.txt
   The first run asks for camera permission for Terminal (or PyCharm). Allow it in
   System Settings -> Privacy & Security -> Camera, then run again.
-  On a Mac, index 0 is normally the built-in FaceTime camera, so the two USB
-  webcams are usually 1 and 2. Run `list` to check.
+  Defaults are left = 0, right = 1. On a Mac with a built-in camera, index 0 may
+  be the FaceTime camera and the webcams 1 and 2; run `list` to check and pass
+  --left/--right if so.
   macOS does not let OpenCV lock a webcam's focus. Lock it once with Logitech's
   app (G HUB / Logi Tune) or `brew install uvc-util` then
   `uvc-util -I 1 -s auto-focus=0 -s focus-abs=0`, and leave it alone afterwards.
@@ -343,7 +344,7 @@ def measure(left_idx, right_idx):
 
 # ---------------------------------------------------------------------------
 def main():
-    default_left, default_right = (1, 2) if IS_MAC else (0, 2)
+    default_left, default_right = 0, 1
     ap = argparse.ArgumentParser(description="Stereo measurement with two USB webcams")
     ap.add_argument("mode", choices=["list", "calibrate", "measure"])
     ap.add_argument("--left", type=int, default=default_left,
