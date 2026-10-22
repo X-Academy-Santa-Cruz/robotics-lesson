@@ -426,10 +426,18 @@ class StereoRig:
                  R1=R1, R2=R2, P1=P1, P2=P2, Q=Q, img_size=img_size)
         self._load_calibration()
         baseline = float(np.linalg.norm(T))
+        # Clear good/bad verdict so you know whether to trust it or recapture.
+        if rms_s < 1.0:
+            verdict = "GOOD"
+        elif rms_s < 2.0:
+            verdict = "OK (recapture for better accuracy)"
+        else:
+            verdict = "POOR - clear pairs and recapture with more varied poses"
         with self._calib_lock:
             self._last_status = (
-                f"Calibrated. stereo RMS {rms_s:.3f} px (under 1.0 is good), "
-                f"baseline {baseline:.1f} mm, focal {K_l[0,0]:.0f} px. Saved {CALIB_FILE}.")
+                f"Calibrated [{verdict}]. stereo RMS {rms_s:.3f} px "
+                f"(aim under 1.0), baseline {baseline:.1f} mm, focal {K_l[0,0]:.0f} px. "
+                f"Saved {CALIB_FILE}.")
             return self._calib_state()
 
     def _calib_state(self):
