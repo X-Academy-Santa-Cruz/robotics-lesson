@@ -524,14 +524,20 @@ async function resetcal(){
 }
 function clickMeasure(ev){
   const img = ev.target;
-  // Map the click from displayed pixels to the half-size image's pixels, then
-  // the server scales x2 to full-frame. Ignore clicks on the right (depth) half.
+  // The served image is two half-size panels side by side: the left half is the
+  // rectified left image (clickable), the right half is the depth map (ignore).
+  // Convert the click to the half-size image's own pixels, reject the right
+  // half, then scale x2 to full-frame rectified-left pixels for the server.
   const r = img.getBoundingClientRect();
   const sx = img.naturalWidth / r.width;
   const sy = img.naturalHeight / r.height;
-  const ix = (ev.clientX - r.left) * sx;
+  const ix = (ev.clientX - r.left) * sx;   // pixels within the half-size 'both' image
   const iy = (ev.clientY - r.top) * sy;
-  fetch('/measure/click?x=' + Math.round(ix) + '&y=' + Math.round(iy), {method:'POST'});
+  const halfW = img.naturalWidth / 2;       // width of the left panel in the served image
+  if (ix >= halfW) return;                  // clicked the depth map, not the image
+  const fullX = Math.round(ix * 2);         // half-size -> full-frame
+  const fullY = Math.round(iy * 2);
+  fetch('/measure/click?x=' + fullX + '&y=' + fullY, {method:'POST'});
 }
 async function clearMeasure(){ await fetch('/measure/clear', {method:'POST'}); }
 tickCal(); tickMea();
@@ -593,8 +599,9 @@ class Handler(BaseHTTPRequestHandler):
                            "application/json")
             elif path == "/measure/click":
                 q = parse_qs(parsed.query)
-                x = int(q.get("x", [0])[0]) * 2   # half-size display -> full frame
-                y = int(q.get("y", [0])[0]) * 2
+                # The page already sends full-frame rectified-left pixels.
+                x = int(q.get("x", [0])[0])
+                y = int(q.get("y", [0])[0])
                 self.rig.add_measure_point(x, y)
                 self._send(200, "ok", "text/plain")
             elif path == "/measure/clear":
