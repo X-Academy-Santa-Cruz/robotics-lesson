@@ -224,6 +224,15 @@ class StereoRig:
             if not (ok_l and ok_r):
                 time.sleep(0.02)
                 continue
+            # Under USB contention a camera can briefly hand back a black frame.
+            # Keep the last good frame for that side instead of publishing black.
+            if fl is None or fl.mean() < 1.0:
+                fl = self._frame_l if self._frame_l is not None else fl
+            if fr is None or fr.mean() < 1.0:
+                fr = self._frame_r if self._frame_r is not None else fr
+            if fl is None or fr is None:
+                time.sleep(0.02)
+                continue
             if fl.shape != fr.shape:
                 fr = cv2.resize(fr, (fl.shape[1], fl.shape[0]))
             with self._lock:
@@ -407,55 +416,60 @@ class StereoRig:
         with self._rect_lock:
             maps = self._maps
 
+        if maps is None and not self.quick:
+            disp = self._compose_pair(fl, fr)
+            cv2.putText(disp, "No calibration - calibrate first, or run with --no-calib",
+                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+            return self._encode(disp), "No calibration. Calibrate, or start with --no-calib."
+
+        # Rectify (calibrated) or use raw frames (quick). This is cheap; the
+        # expensive part is the stereo DISPARITY, which we only run when there
+        # are points to measure -- otherwise the per-frame CPU load starves one
+        # camera and its panel goes black.
         if maps is not None:
-            # --- calibrated: rectify, then OpenCV gives metric XYZ via Q ------
             map_lx, map_ly, map_rx, map_ry, Q, img_size = maps
             if (fl.shape[1], fl.shape[0]) != img_size:
                 fl = cv2.resize(fl, img_size)
                 fr = cv2.resize(fr, img_size)
             left_img = cv2.remap(fl, map_lx, map_ly, cv2.INTER_LINEAR)
             right_img = cv2.remap(fr, map_rx, map_ry, cv2.INTER_LINEAR)
-            gray_l = cv2.cvtColor(left_img, cv2.COLOR_BGR2GRAY)
-            gray_r = cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY)
-            disparity = self._stereo.compute(gray_l, gray_r).astype(np.float32) / 16.0
-            xyz = cv2.reprojectImageTo3D(disparity, Q)
             mode_note = ""
-        elif self.quick:
-            # --- quick (no calibration): depth = f*B/disp on the raw frames ---
-            left_img, right_img = fl, fr
-            gray_l = cv2.cvtColor(left_img, cv2.COLOR_BGR2GRAY)
-            gray_r = cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY)
-            disparity = self._stereo.compute(gray_l, gray_r).astype(np.float32) / 16.0
-            # Z = f*B/disp ; X,Y back-projected from the pixel offset from centre.
-            cx, cy = left_img.shape[1] / 2.0, left_img.shape[0] / 2.0
-            with np.errstate(divide="ignore", invalid="ignore"):
-                Z = self.focal_px * self.baseline_mm / disparity
-            Z[disparity <= 0] = 0.0
-            ys, xs = np.indices(Z.shape, dtype=np.float32)
-            X = (xs - cx) * Z / self.focal_px
-            Y = (ys - cy) * Z / self.focal_px
-            xyz = np.dstack((X, Y, Z))
-            mode_note = "quick (no calibration)"
         else:
-            disp = cv2.resize(fl, None, fx=0.5, fy=0.5)
-            cv2.putText(disp, "No calibration - calibrate first, or run with --no-calib",
-                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-            return self._encode(disp), "No calibration. Calibrate, or start with --no-calib."
+            left_img, right_img = fl, fr
+            mode_note = "quick (no calibration)"
 
         display = left_img.copy()
         pts_3d = []
         readout = "Click one point for distance, two for size."
         big_text = None          # large on-image overlay (distance or size)
-        for (x, y) in self._points:
-            patch = xyz[max(0, y - 2):y + 3, max(0, x - 2):x + 3].reshape(-1, 3)
-            patch_d = disparity[max(0, y - 2):y + 3, max(0, x - 2):x + 3].reshape(-1)
-            good = patch[patch_d > 0]
-            if len(good) == 0:
-                cv2.circle(display, (x, y), 7, (0, 0, 255), 2)
-                continue
-            p = np.median(good, axis=0)
-            pts_3d.append(p)
-            cv2.circle(display, (x, y), 7, (0, 255, 0), 2)
+
+        if self._points:
+            # Only now (a point is set) do we compute disparity -> 3D.
+            gray_l = cv2.cvtColor(left_img, cv2.COLOR_BGR2GRAY)
+            gray_r = cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY)
+            disparity = self._stereo.compute(gray_l, gray_r).astype(np.float32) / 16.0
+            if maps is not None:
+                xyz = cv2.reprojectImageTo3D(disparity, Q)
+            else:
+                cx, cy = left_img.shape[1] / 2.0, left_img.shape[0] / 2.0
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    Z = self.focal_px * self.baseline_mm / disparity
+                Z[disparity <= 0] = 0.0
+                ys, xs = np.indices(Z.shape, dtype=np.float32)
+                X = (xs - cx) * Z / self.focal_px
+                Y = (ys - cy) * Z / self.focal_px
+                xyz = np.dstack((X, Y, Z))
+
+            for (x, y) in self._points:
+                patch = xyz[max(0, y - 2):y + 3, max(0, x - 2):x + 3].reshape(-1, 3)
+                patch_d = disparity[max(0, y - 2):y + 3, max(0, x - 2):x + 3].reshape(-1)
+                good = patch[patch_d > 0]
+                if len(good) == 0:
+                    cv2.circle(display, (x, y), 7, (0, 0, 255), 2)
+                    continue
+                p = np.median(good, axis=0)
+                pts_3d.append(p)
+                cv2.circle(display, (x, y), 7, (0, 255, 0), 2)
 
         if len(pts_3d) == 1:
             big_text = f"{pts_3d[0][2] / 10:.1f} cm"
