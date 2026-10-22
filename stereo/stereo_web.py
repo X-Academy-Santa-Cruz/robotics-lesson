@@ -112,12 +112,13 @@ def open_camera(index):
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)        # low latency
 
     if IS_LINUX:
-        # If the lens refocuses, the focal length changes and the calibration
-        # is no longer valid. Fixed-focus cameras ignore these.
+        # Lock focus (a refocus changes the focal length and breaks calibration);
+        # fixed-focus cameras ignore this. Leave EXPOSURE on AUTO -- forcing a
+        # manual exposure here made the image come out black on the C270s.
+        # (3 = V4L2 auto-exposure "aperture priority"; this is the default.)
         cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
         cap.set(cv2.CAP_PROP_FOCUS, 0)
-        cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)
-        cap.set(cv2.CAP_PROP_EXPOSURE, 150)
+        cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 3)
 
     # Use whatever the camera actually gives, not what we asked for.
     actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
