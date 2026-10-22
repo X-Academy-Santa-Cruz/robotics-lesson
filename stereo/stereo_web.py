@@ -245,6 +245,20 @@ class StereoRig:
         self.cap_l.release()
         self.cap_r.release()
 
+    # --- shared side-by-side view (used by BOTH calibrate and measure) ------
+    # One composer so the two pages always show the cameras the same way: the
+    # left frame and the right frame, side by side, scaled to the same width.
+    VIEW_W = 1280          # total width of the composed (left|right) image
+
+    def _compose_pair(self, left_bgr, right_bgr):
+        """Stack left|right and scale the pair to VIEW_W. Returns the image."""
+        both = np.hstack((left_bgr, right_bgr))
+        if both.shape[1] != self.VIEW_W:
+            s = self.VIEW_W / both.shape[1]
+            both = cv2.resize(both, None, fx=s, fy=s,
+                              interpolation=cv2.INTER_AREA if s < 1 else cv2.INTER_LINEAR)
+        return both
+
     # --- calibrate ---------------------------------------------------------
     def calib_annotated_pair(self):
         """Live side-by-side (L | R) with any detected checkerboard drawn on.
@@ -263,8 +277,7 @@ class StereoRig:
             cv2.drawChessboardCorners(show_l, (CB_COLS, CB_ROWS), corners_l, found_l)
         if found_r:
             cv2.drawChessboardCorners(show_r, (CB_COLS, CB_ROWS), corners_r, found_r)
-        both = np.hstack((show_l, show_r))
-        both = cv2.resize(both, None, fx=0.5, fy=0.5)
+        both = self._compose_pair(show_l, show_r)
         with self._calib_lock:
             n = len(self._obj_points)
         colour = (0, 220, 0) if (found_l and found_r) else (0, 165, 255)
@@ -472,18 +485,11 @@ class StereoRig:
             cv2.putText(display, big_text, org, cv2.FONT_HERSHEY_SIMPLEX, scale,
                         colour, thick, cv2.LINE_AA)               # fill
 
-        # Show BOTH cameras side by side (left | right), like the calibrate page.
-        # The LEFT panel carries the click dots / measurement line; the right
-        # panel is the second camera's view so you can see both feeds and judge
-        # alignment. Clicks land on the left panel (the page sends fractions and
-        # rejects the right half).
-        right_show = right_img.copy()
-        both = np.hstack((display, right_show))
-        # Cap the served width so two panels can't overflow the browser.
-        max_w = 1280
-        if both.shape[1] > max_w:
-            s = max_w / both.shape[1]
-            both = cv2.resize(both, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
+        # Show BOTH cameras side by side (left | right) using the SAME composer
+        # as the calibrate page, so the two pages' video windows match exactly.
+        # The LEFT panel carries the click dots / measurement line and the big
+        # readout; clicks land on the left panel (fractions, right half ignored).
+        both = self._compose_pair(display, right_img)
         return self._encode(both), readout
 
     # --- shared ------------------------------------------------------------
