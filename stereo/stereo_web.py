@@ -577,12 +577,15 @@ class StereoRig:
             cv2.putText(display, big_text, org, cv2.FONT_HERSHEY_SIMPLEX, scale,
                         colour, thick, cv2.LINE_AA)               # fill
 
-        # Show BOTH cameras side by side (left | right) using the SAME composer
-        # as the calibrate page, so the two pages' video windows match exactly.
-        # The LEFT panel carries the click dots / measurement line and the big
-        # readout; clicks land on the left panel (fractions, right half ignored).
-        both = self._compose_pair(display, right_img)
-        return self._encode(both), readout
+        # Measure shows ONE large picture: the left camera, with the click dots,
+        # measurement line and big readout. Scaled to a single wide view.
+        out = display
+        target_w = 960
+        if out.shape[1] != target_w:
+            s = target_w / out.shape[1]
+            out = cv2.resize(out, None, fx=s, fy=s,
+                             interpolation=cv2.INTER_AREA if s < 1 else cv2.INTER_LINEAR)
+        return self._encode(out), readout
 
     # --- shared ------------------------------------------------------------
     @staticmethod
@@ -646,11 +649,11 @@ PAGE = """<!doctype html>
 </div>
 
 <div id="panel-mea" class="panel">
-  <p class="hint">Both camera views are shown (left | right). Click on the
-     <b>left</b> image: one point for its <b>distance</b>, a second point for the
-     <b>size</b> between the two. A third click starts over. The value is shown
-     large on the left image. In no-calibration mode it is approximate (the
-     status line is tagged <i>[quick (no calibration)]</i>).</p>
+  <p class="hint">Click on the image: one point for its <b>distance</b>, a second
+     point for the <b>size</b> between the two. A third click starts over. The
+     value is shown large on the image. In no-calibration mode it is approximate
+     and can fluctuate (the status line is tagged <i>[quick (no calibration)]</i>);
+     for stable, accurate readings, calibrate first.</p>
   <img id="view2" alt="measure view" onclick="clickMeasure(event)">
   <div class="controls">
     <button onclick="clearMeasure()">Clear points</button>
@@ -707,15 +710,11 @@ async function resetcal(){
 }
 function clickMeasure(ev){
   const img = ev.target;
-  // The measure image is two panels side by side (left | right). Only the LEFT
-  // panel is clickable. Work in fractions of the displayed box so it is correct
-  // at any size or zoom.
+  // The measure image is a single left-camera view. Send the click as a
+  // fraction of the displayed box so it maps correctly at any size or zoom.
   const r = img.getBoundingClientRect();
-  const fx = (ev.clientX - r.left) / r.width;   // 0..1 across the whole image
-  const fy = (ev.clientY - r.top) / r.height;   // 0..1 down
-  if (fx >= 0.5) return;                         // clicked the right camera, ignore
-  const u = fx * 2;                              // 0..1 across the LEFT panel only
-  const v = fy;
+  const u = (ev.clientX - r.left) / r.width;    // 0..1 across
+  const v = (ev.clientY - r.top) / r.height;    // 0..1 down
   fetch('/measure/click?u=' + u.toFixed(4) + '&v=' + v.toFixed(4), {method:'POST'});
 }
 async function clearMeasure(){ await fetch('/measure/clear', {method:'POST'}); }
