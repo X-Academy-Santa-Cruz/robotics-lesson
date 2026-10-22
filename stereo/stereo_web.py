@@ -256,7 +256,11 @@ class StereoRig:
             P1=8 * 3 * 7 ** 2, P2=32 * 3 * 7 ** 2,
             disp12MaxDiff=1, uniquenessRatio=10, speckleWindowSize=100, speckleRange=2,
             mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY)
-        self._load_calibration()   # ok if it isn't there yet
+        # In --no-calib (quick) mode, IGNORE any saved stereo_calib.npz: a stale
+        # or poor calibration would rectify the frames with bad maps and warp the
+        # left image off-screen (black panel). Quick mode uses the raw frames.
+        if not self.quick:
+            self._load_calibration()   # ok if the file isn't there yet
 
         # Measure click state, in full-frame rectified-left pixels.
         self._points = []          # up to 2 (x, y)
