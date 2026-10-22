@@ -62,12 +62,22 @@ import numpy as np  # noqa: E402
 # ---------------------------------------------------------------------------
 # Settings  (kept identical to stereo_measure.py so calibrations interchange)
 # ---------------------------------------------------------------------------
-FRAME_W, FRAME_H = 1280, 720     # 720p keeps stereo matching fast enough on a Pi
+# Preferred capture size. The camera may not support it (many webcams only give
+# 640x480); we ask for this but then USE WHATEVER THE CAMERA ACTUALLY RETURNS,
+# so the image is never cropped to a size the camera isn't sending.
+PREF_W, PREF_H = 1280, 720
 CB_COLS, CB_ROWS = 9, 6          # inner corners of the checkerboard
 CB_SQUARE_MM = 25.0              # size of one square in millimetres
 CALIB_FILE = "stereo_calib.npz"
 MIN_PAIRS = 15                   # minimum good checkerboard pairs before calibrating
 JPEG_QUALITY = 80                # MJPEG quality for the browser stream
+
+# No-calibration ("quick") mode: compute depth straight from disparity with
+#   depth = focal_px * baseline_mm / disparity
+# assuming the two cameras are mounted level and parallel and lens distortion is
+# small. Less accurate than a real calibration, but needs no checkerboard.
+DEFAULT_BASELINE_MM = 100.0      # centre-to-centre lens spacing; override with --baseline
+DEFAULT_HFOV_DEG = 60.0          # horizontal field of view (Logitech C270 ~ 60 deg)
 
 IS_MAC = platform.system() == "Darwin"
 IS_LINUX = platform.system() == "Linux"
@@ -96,8 +106,8 @@ def open_camera(index):
                "Privacy & Security." if IS_MAC else "."))
 
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_W)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_H)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, PREF_W)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, PREF_H)
     cap.set(cv2.CAP_PROP_FPS, 30)
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)        # low latency
 
@@ -109,10 +119,11 @@ def open_camera(index):
         cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)
         cap.set(cv2.CAP_PROP_EXPOSURE, 150)
 
+    # Use whatever the camera actually gives, not what we asked for.
     actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    if (actual_w, actual_h) != (FRAME_W, FRAME_H):
-        print(f"camera {index}: asked for {FRAME_W}x{FRAME_H}, got {actual_w}x{actual_h}")
+    if (actual_w, actual_h) != (PREF_W, PREF_H):
+        print(f"camera {index}: asked for {PREF_W}x{PREF_H}, using {actual_w}x{actual_h}")
     return cap
 
 
@@ -143,11 +154,27 @@ def list_cameras(max_index=6):
 # for calibration and measurement. The web handlers only call its methods.
 # ---------------------------------------------------------------------------
 class StereoRig:
-    def __init__(self, left_idx, right_idx):
+    def __init__(self, left_idx, right_idx, quick=False,
+                 baseline_mm=DEFAULT_BASELINE_MM, hfov_deg=DEFAULT_HFOV_DEG,
+                 focal_px=None):
         self.left_idx = left_idx
         self.right_idx = right_idx
         self.cap_l = open_camera(left_idx)
         self.cap_r = open_camera(right_idx)
+
+        # The real capture size (both cameras are made to match the left one).
+        self.frame_w = int(self.cap_l.get(cv2.CAP_PROP_FRAME_WIDTH)) or PREF_W
+        self.frame_h = int(self.cap_l.get(cv2.CAP_PROP_FRAME_HEIGHT)) or PREF_H
+
+        # --- no-calibration (quick) mode -----------------------------------
+        self.quick = quick
+        self.baseline_mm = float(baseline_mm)
+        if focal_px is not None:
+            self.focal_px = float(focal_px)
+        else:
+            # f_px = (width/2) / tan(HFOV/2). Uses the REAL frame width.
+            import math
+            self.focal_px = (self.frame_w / 2.0) / math.tan(math.radians(hfov_deg) / 2.0)
 
         self._lock = threading.Lock()          # guards the latest frames
         self._frame_l = None
@@ -334,43 +361,70 @@ class StereoRig:
         with self._rect_lock:
             return self._maps is not None
 
-    def add_measure_point(self, x, y):
-        """x, y are full-frame rectified-left pixels. Third click clears."""
+    def add_measure_point(self, u, v):
+        """u, v are NORMALISED (0..1) within the left image. Third click clears.
+
+        Normalised coordinates are resolution-independent: the browser sends the
+        fraction across/down the left panel, and we turn it into real pixels
+        here, so clicks are correct whatever size the cameras deliver and however
+        the page scales the image.
+        """
         if len(self._points) >= 2:
             self._points = []
-        self._points.append((int(x), int(y)))
+        x = int(round(min(max(u, 0.0), 1.0) * (self.frame_w - 1)))
+        y = int(round(min(max(v, 0.0), 1.0) * (self.frame_h - 1)))
+        self._points.append((x, y))
 
     def clear_measure_points(self):
         self._points = []
 
     def measure_frame(self):
-        """Rectified left (with click overlays) beside the colour disparity map.
+        """Left image (with click overlays) beside the colour disparity map.
 
+        Calibrated mode rectifies first; quick mode works on the raw frames and
+        turns disparity into depth with focal_px * baseline / disparity.
         Returns (jpeg_bytes, readout_text).
         """
+        fl, fr = self._latest()
         with self._rect_lock:
             maps = self._maps
-        fl, fr = self._latest()
-        if maps is None:
-            # No calibration yet: show the plain left image with a notice.
+
+        if maps is not None:
+            # --- calibrated: rectify, then OpenCV gives metric XYZ via Q ------
+            map_lx, map_ly, map_rx, map_ry, Q, img_size = maps
+            if (fl.shape[1], fl.shape[0]) != img_size:
+                fl = cv2.resize(fl, img_size)
+                fr = cv2.resize(fr, img_size)
+            left_img = cv2.remap(fl, map_lx, map_ly, cv2.INTER_LINEAR)
+            right_img = cv2.remap(fr, map_rx, map_ry, cv2.INTER_LINEAR)
+            gray_l = cv2.cvtColor(left_img, cv2.COLOR_BGR2GRAY)
+            gray_r = cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY)
+            disparity = self._stereo.compute(gray_l, gray_r).astype(np.float32) / 16.0
+            xyz = cv2.reprojectImageTo3D(disparity, Q)
+            mode_note = ""
+        elif self.quick:
+            # --- quick (no calibration): depth = f*B/disp on the raw frames ---
+            left_img, right_img = fl, fr
+            gray_l = cv2.cvtColor(left_img, cv2.COLOR_BGR2GRAY)
+            gray_r = cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY)
+            disparity = self._stereo.compute(gray_l, gray_r).astype(np.float32) / 16.0
+            # Z = f*B/disp ; X,Y back-projected from the pixel offset from centre.
+            cx, cy = left_img.shape[1] / 2.0, left_img.shape[0] / 2.0
+            with np.errstate(divide="ignore", invalid="ignore"):
+                Z = self.focal_px * self.baseline_mm / disparity
+            Z[disparity <= 0] = 0.0
+            ys, xs = np.indices(Z.shape, dtype=np.float32)
+            X = (xs - cx) * Z / self.focal_px
+            Y = (ys - cy) * Z / self.focal_px
+            xyz = np.dstack((X, Y, Z))
+            mode_note = "quick (no calibration)"
+        else:
             disp = cv2.resize(fl, None, fx=0.5, fy=0.5)
-            cv2.putText(disp, "No calibration - calibrate first", (10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-            return self._encode(disp), "No calibration loaded."
+            cv2.putText(disp, "No calibration - calibrate first, or run with --no-calib",
+                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+            return self._encode(disp), "No calibration. Calibrate, or start with --no-calib."
 
-        map_lx, map_ly, map_rx, map_ry, Q, img_size = maps
-        if (fl.shape[1], fl.shape[0]) != img_size:
-            fl = cv2.resize(fl, img_size)
-            fr = cv2.resize(fr, img_size)
-        rect_l = cv2.remap(fl, map_lx, map_ly, cv2.INTER_LINEAR)
-        rect_r = cv2.remap(fr, map_rx, map_ry, cv2.INTER_LINEAR)
-
-        gray_l = cv2.cvtColor(rect_l, cv2.COLOR_BGR2GRAY)
-        gray_r = cv2.cvtColor(rect_r, cv2.COLOR_BGR2GRAY)
-        disparity = self._stereo.compute(gray_l, gray_r).astype(np.float32) / 16.0
-        xyz = cv2.reprojectImageTo3D(disparity, Q)
-
-        display = rect_l.copy()
+        display = left_img.copy()
         pts_3d = []
         readout = "Click one point for distance, two for size."
         for (x, y) in self._points:
@@ -397,13 +451,15 @@ class StereoRig:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 200, 0), 2)
             readout = (f"Size: {size_mm / 10:.1f} cm   "
                        f"(depths {pts_3d[0][2] / 10:.1f} / {pts_3d[1][2] / 10:.1f} cm)")
+        if mode_note:
+            readout = f"[{mode_note}]  " + readout
 
         disp_vis = cv2.normalize(disparity, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
         disp_vis = cv2.applyColorMap(disp_vis, cv2.COLORMAP_JET)
         both = np.hstack((display, disp_vis))
-        both = cv2.resize(both, None, fx=0.5, fy=0.5)
-        # The left half of the half-size image is the clickable area; the page
-        # scales clicks back up by 2 and ignores clicks on the right half.
+        # Scale the combined image down for the browser only if it's large.
+        if both.shape[1] > 1600:
+            both = cv2.resize(both, None, fx=0.5, fy=0.5)
         return self._encode(both), readout
 
     # --- shared ------------------------------------------------------------
@@ -467,7 +523,8 @@ PAGE = """<!doctype html>
 <div id="panel-mea" class="panel">
   <p class="hint">Click one point on the <b>left image</b> for its distance; click a
      second point for the size between the two. A third click starts over. The
-     right half is the depth map (not clickable).</p>
+     right half is the depth map (not clickable). In no-calibration mode the
+     readout is tagged <i>[quick (no calibration)]</i> and is approximate.</p>
   <img id="view2" alt="measure view" onclick="clickMeasure(event)">
   <div class="controls">
     <button onclick="clearMeasure()">Clear points</button>
@@ -524,20 +581,16 @@ async function resetcal(){
 }
 function clickMeasure(ev){
   const img = ev.target;
-  // The served image is two half-size panels side by side: the left half is the
-  // rectified left image (clickable), the right half is the depth map (ignore).
-  // Convert the click to the half-size image's own pixels, reject the right
-  // half, then scale x2 to full-frame rectified-left pixels for the server.
+  // The served image is two panels side by side: the LEFT half is the camera
+  // image (clickable), the RIGHT half is the depth map (ignore). Work in
+  // fractions of the displayed box so it is correct at any resolution or zoom.
   const r = img.getBoundingClientRect();
-  const sx = img.naturalWidth / r.width;
-  const sy = img.naturalHeight / r.height;
-  const ix = (ev.clientX - r.left) * sx;   // pixels within the half-size 'both' image
-  const iy = (ev.clientY - r.top) * sy;
-  const halfW = img.naturalWidth / 2;       // width of the left panel in the served image
-  if (ix >= halfW) return;                  // clicked the depth map, not the image
-  const fullX = Math.round(ix * 2);         // half-size -> full-frame
-  const fullY = Math.round(iy * 2);
-  fetch('/measure/click?x=' + fullX + '&y=' + fullY, {method:'POST'});
+  const fx = (ev.clientX - r.left) / r.width;   // 0..1 across the whole (two-panel) image
+  const fy = (ev.clientY - r.top) / r.height;   // 0..1 down
+  if (fx >= 0.5) return;                         // clicked the depth map, not the image
+  const u = fx * 2;                              // 0..1 across the LEFT panel only
+  const v = fy;                                  // 0..1 down
+  fetch('/measure/click?u=' + u.toFixed(4) + '&v=' + v.toFixed(4), {method:'POST'});
 }
 async function clearMeasure(){ await fetch('/measure/clear', {method:'POST'}); }
 tickCal(); tickMea();
@@ -599,10 +652,10 @@ class Handler(BaseHTTPRequestHandler):
                            "application/json")
             elif path == "/measure/click":
                 q = parse_qs(parsed.query)
-                # The page already sends full-frame rectified-left pixels.
-                x = int(q.get("x", [0])[0])
-                y = int(q.get("y", [0])[0])
-                self.rig.add_measure_point(x, y)
+                # The page sends normalised (0..1) coords within the left panel.
+                u = float(q.get("u", [0])[0])
+                v = float(q.get("v", [0])[0])
+                self.rig.add_measure_point(u, v)
                 self._send(200, "ok", "text/plain")
             elif path == "/measure/clear":
                 self.rig.clear_measure_points()
@@ -630,15 +683,26 @@ def local_ip():
 @click.option("--left", type=int, default=0, show_default=True, help="Left camera index.")
 @click.option("--right", type=int, default=1, show_default=True, help="Right camera index.")
 @click.option("--port", type=int, default=8010, show_default=True, help="Web server port.")
+@click.option("--no-calib", "no_calib", is_flag=True,
+              help="Skip the checkerboard: measure straight from --baseline and "
+                   "--hfov/--focal-px (less accurate, assumes level parallel cameras).")
+@click.option("--baseline", type=float, default=DEFAULT_BASELINE_MM, show_default=True,
+              help="Centre-to-centre lens spacing in mm (for --no-calib).")
+@click.option("--hfov", type=float, default=DEFAULT_HFOV_DEG, show_default=True,
+              help="Horizontal field of view in degrees (for --no-calib; "
+                   "Logitech C270 is about 60).")
+@click.option("--focal-px", "focal_px", type=float, default=None,
+              help="Focal length in pixels (for --no-calib). Overrides --hfov if given.")
 @click.option("--list", "list_only", is_flag=True,
               help="List camera indexes and exit (don't start the server).")
-def main(left, right, port, list_only):
+def main(left, right, port, no_calib, baseline, hfov, focal_px, list_only):
     if list_only:
         list_cameras()
         return
 
     try:
-        rig = StereoRig(left, right)
+        rig = StereoRig(left, right, quick=no_calib, baseline_mm=baseline,
+                        hfov_deg=hfov, focal_px=focal_px)
     except RuntimeError as exc:
         sys.exit(str(exc))
 
@@ -648,7 +712,13 @@ def main(left, right, port, list_only):
     print(f"Stereo web app on:")
     print(f"  http://localhost:{port}/")
     print(f"  http://{ip}:{port}/   (from another computer on the network)")
-    print("Calibrate tab first (saves stereo_calib.npz), then Measure. Ctrl-C to stop.")
+    print(f"Cameras: left={left} right={right}, {rig.frame_w}x{rig.frame_h}")
+    if no_calib:
+        print(f"Mode: NO-CALIBRATION  baseline={rig.baseline_mm:.0f} mm  "
+              f"focal={rig.focal_px:.0f} px  -> go straight to the Measure tab.")
+    else:
+        print("Calibrate tab first (saves stereo_calib.npz), then Measure.")
+    print("Ctrl-C to stop.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
