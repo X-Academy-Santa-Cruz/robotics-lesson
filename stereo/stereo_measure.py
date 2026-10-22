@@ -39,7 +39,7 @@ something flat. Calibrate in the same medium you will measure in: on the bench
 for the bench project, in the water for the ROV.
 """
 
-import argparse
+import click
 import os
 import platform
 import sys
@@ -343,21 +343,41 @@ def measure(left_idx, right_idx):
 
 
 # ---------------------------------------------------------------------------
+# Default camera indexes: left camera 0, right camera 1. (Adjust with --left /
+# --right; run the 'list' command to see which indexes your cameras are on. On a
+# Mac the built-in FaceTime camera is often 0, so you may need 1 and 2 there.)
+_DEFAULT_LEFT, _DEFAULT_RIGHT = 0, 1
+
+
+def _camera_options(func):
+    """Shared --left / --right options for the calibrate and measure commands."""
+    func = click.option("--left", type=int, default=_DEFAULT_LEFT, show_default=True,
+                        help="Left camera index.")(func)
+    func = click.option("--right", type=int, default=_DEFAULT_RIGHT, show_default=True,
+                        help="Right camera index.")(func)
+    return func
+
+
+@click.group(help="Measure distance and size with two USB webcams.")
 def main():
-    default_left, default_right = 0, 1
-    ap = argparse.ArgumentParser(description="Stereo measurement with two USB webcams")
-    ap.add_argument("mode", choices=["list", "calibrate", "measure"])
-    ap.add_argument("--left", type=int, default=default_left,
-                    help=f"left camera index (default {default_left})")
-    ap.add_argument("--right", type=int, default=default_right,
-                    help=f"right camera index (default {default_right})")
-    args = ap.parse_args()
-    if args.mode == "list":
-        list_cameras()
-    elif args.mode == "calibrate":
-        calibrate(args.left, args.right)
-    else:
-        measure(args.left, args.right)
+    pass
+
+
+@main.command("list", help="Show which camera indexes exist and their resolution.")
+def list_cmd():
+    list_cameras()
+
+
+@main.command("calibrate", help="Capture checkerboard pairs and save stereo_calib.npz.")
+@_camera_options
+def calibrate_cmd(left, right):
+    calibrate(left, right)
+
+
+@main.command("measure", help="Live stereo view: click points to measure distance or size.")
+@_camera_options
+def measure_cmd(left, right):
+    measure(left, right)
 
 
 if __name__ == "__main__":
