@@ -467,10 +467,13 @@ class StereoRig:
             cv2.putText(display, big_text, org, cv2.FONT_HERSHEY_SIMPLEX, scale,
                         colour, thick, cv2.LINE_AA)               # fill
 
-        # One video only (the left camera). Scale down for the browser if large.
+        # One video only (the left camera). Cap the served width so it can't
+        # overflow the browser panel (clicks use fractions, so scaling is safe).
         out = display
-        if out.shape[1] > 1280:
-            out = cv2.resize(out, None, fx=0.5, fy=0.5)
+        max_w = 960
+        if out.shape[1] > max_w:
+            s = max_w / out.shape[1]
+            out = cv2.resize(out, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
         return self._encode(out), readout
 
     # --- shared ------------------------------------------------------------
@@ -490,6 +493,8 @@ PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  html, body { max-width: 100%; overflow-x: hidden; }
   body { font-family: system-ui, sans-serif; margin: 0; background:#111; color:#eee; }
   header { padding: 10px 16px; background:#1b2a3a; }
   h1 { font-size: 18px; margin: 0; }
@@ -499,8 +504,8 @@ PAGE = """<!doctype html>
   .tabs button.active { background:#2bb3a3; color:#06231f; font-weight:600; }
   .panel { display:none; padding:0 16px 20px; }
   .panel.active { display:block; }
-  img#view, img#view2 { max-width:100%; height:auto; border:1px solid #333;
-             border-radius:6px; display:block; }
+  img#view, img#view2 { display:block; width:100%; max-width:960px; height:auto;
+             border:1px solid #333; border-radius:6px; }
   img#view2 { cursor:crosshair; }
   .controls { margin:12px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .controls button { font-size:15px; padding:8px 14px; border:0; border-radius:6px;
