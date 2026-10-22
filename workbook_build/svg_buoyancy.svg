@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 430" width="900" height="430">
+  <rect x="0" y="0" width="900" height="430" fill="#ffffff"/>
+  <defs><marker id="ah-0E7C7B" markerWidth="10" markerHeight="10" refX="7" refY="3.2" orient="auto"><path d="M0 0 L8 3.2 L0 6.4 Z" fill="#0E7C7B"/></marker><marker id="ah-C0392B" markerWidth="10" markerHeight="10" refX="7" refY="3.2" orient="auto"><path d="M0 0 L8 3.2 L0 6.4 Z" fill="#C0392B"/></marker><marker id="ah-1F3A5F" markerWidth="10" markerHeight="10" refX="7" refY="3.2" orient="auto"><path d="M0 0 L8 3.2 L0 6.4 Z" fill="#1F3A5F"/></marker></defs><text x="40" y="36" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#1F3A5F" text-anchor="start">How center of gravity and center of buoyancy decide stability</text><g>
+    <circle cx="52" cy="62" r="8" fill="#e2574c"/>
+    <path d="M52 54 A8 8 0 0 1 60 62 L52 62 Z" fill="#a83125"/>
+    <path d="M52 70 A8 8 0 0 1 44 62 L52 62 Z" fill="#a83125"/>
+  </g><text x="66" y="67" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#12222E" text-anchor="start">COG (weight)</text><g>
+    <circle cx="210" cy="62" r="8" fill="#2bb3a3"/>
+    <path d="M210 54 A8 8 0 0 1 218 62 L210 62 Z" fill="#0e7c6f"/>
+    <path d="M210 70 A8 8 0 0 1 202 62 L210 62 Z" fill="#0e7c6f"/>
+  </g><text x="224" y="67" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#12222E" text-anchor="start">COB (lift)</text><rect x="40" y="150" width="250" height="210" fill="#bfe0ea" opacity="0.5"/><line x1="40" y1="150" x2="290" y2="150" stroke="#2E8BA0" stroke-width="2" stroke-dasharray="6 5"/><g transform="translate(190,250) rotate(0)"><rect x="-70" y="-34" width="140" height="68" rx="9" fill="#1F3A5F" stroke="#0E7C7B" stroke-width="3"/><rect x="-55" y="-52" width="110" height="16" rx="6" fill="#5fd0c5" stroke="#2bb3a3" stroke-width="2"/><rect x="-42" y="36" width="84" height="14" rx="4" fill="#3a4a55"/><g>
+    <circle cx="0" cy="-20" r="9" fill="#2bb3a3"/>
+    <path d="M0 -29 A9 9 0 0 1 9 -20 L0 -20 Z" fill="#0e7c6f"/>
+    <path d="M0 -11 A9 9 0 0 1 -9 -20 L0 -20 Z" fill="#0e7c6f"/>
+  </g><g>
+    <circle cx="0" cy="34" r="9" fill="#e2574c"/>
+    <path d="M0 25 A9 9 0 0 1 9 34 L0 34 Z" fill="#a83125"/>
+    <path d="M0 43 A9 9 0 0 1 -9 34 L0 34 Z" fill="#a83125"/>
+  </g></g><path d="M 285 285 A 55 55 0 0 1 285 215" fill="none" stroke="#0E7C7B" stroke-width="3" marker-end="url(#ah-0E7C7B)"/><text x="295" y="255" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#0E7C7B" text-anchor="start">rights</text><text x="190" y="392" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#0E7C7B" text-anchor="middle">Stable ✔</text><text x="190" y="412" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#5A6B75" text-anchor="middle">COB above COG</text><rect x="330" y="150" width="250" height="210" fill="#bfe0ea" opacity="0.5"/><line x1="330" y1="150" x2="580" y2="150" stroke="#2E8BA0" stroke-width="2" stroke-dasharray="6 5"/><g transform="translate(480,250) rotate(0)"><rect x="-70" y="-34" width="140" height="68" rx="9" fill="#1F3A5F" stroke="#0E7C7B" stroke-width="3"/><rect x="-55" y="-52" width="110" height="16" rx="6" fill="#5fd0c5" stroke="#2bb3a3" stroke-width="2"/><rect x="-42" y="36" width="84" height="14" rx="4" fill="#3a4a55"/><g>
+    <circle cx="0" cy="-6" r="9" fill="#2bb3a3"/>
+    <path d="M0 -15 A9 9 0 0 1 9 -6 L0 -6 Z" fill="#0e7c6f"/>
+    <path d="M0 3 A9 9 0 0 1 -9 -6 L0 -6 Z" fill="#0e7c6f"/>
+  </g><g>
+    <circle cx="0" cy="-6" r="9" fill="#e2574c"/>
+    <path d="M0 -15 A9 9 0 0 1 9 -6 L0 -6 Z" fill="#a83125"/>
+    <path d="M0 3 A9 9 0 0 1 -9 -6 L0 -6 Z" fill="#a83125"/>
+  </g></g><text x="480" y="392" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#B7791F" text-anchor="middle">Marginal</text><text x="480" y="412" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#5A6B75" text-anchor="middle">COB ≈ COG</text><rect x="620" y="150" width="250" height="210" fill="#bfe0ea" opacity="0.5"/><line x1="620" y1="150" x2="870" y2="150" stroke="#2E8BA0" stroke-width="2" stroke-dasharray="6 5"/><g transform="translate(770,250) rotate(24)"><rect x="-70" y="-34" width="140" height="68" rx="9" fill="#1F3A5F" stroke="#0E7C7B" stroke-width="3"/><rect x="-55" y="-52" width="110" height="16" rx="6" fill="#5fd0c5" stroke="#2bb3a3" stroke-width="2"/><rect x="-42" y="36" width="84" height="14" rx="4" fill="#3a4a55"/><g>
+    <circle cx="0" cy="18" r="9" fill="#2bb3a3"/>
+    <path d="M0 9 A9 9 0 0 1 9 18 L0 18 Z" fill="#0e7c6f"/>
+    <path d="M0 27 A9 9 0 0 1 -9 18 L0 18 Z" fill="#0e7c6f"/>
+  </g><g>
+    <circle cx="0" cy="-30" r="9" fill="#e2574c"/>
+    <path d="M0 -39 A9 9 0 0 1 9 -30 L0 -30 Z" fill="#a83125"/>
+    <path d="M0 -21 A9 9 0 0 1 -9 -30 L0 -30 Z" fill="#a83125"/>
+  </g></g><path d="M 865 215 A 55 55 0 0 1 865 285" fill="none" stroke="#C0392B" stroke-width="3" marker-end="url(#ah-C0392B)"/><text x="872" y="255" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#C0392B" text-anchor="start">flips</text><text x="770" y="392" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#C0392B" text-anchor="middle">Rolls over ✘</text><text x="770" y="412" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#5A6B75" text-anchor="middle">COG above COB</text>
+  </svg>

@@ -1,14 +1,19 @@
-# Python packages for the stereo measurement lesson.
+# Python packages for the stereo lesson (both the desktop stereo_measure.py and
+# the browser app stereo_web.py).
 #
 # On a Mac (or any laptop), make a venv in this folder and pip install:
 #   python3 -m venv .venv && source .venv/bin/activate
 #   pip install -r requirements.txt
 #
-# Use opencv-contrib-python, NOT opencv-python-headless: this lesson opens
-# windows with cv2.imshow, and the headless build has no GUI.
+# Use opencv-contrib-python, NOT opencv-python-headless: the desktop
+# stereo_measure.py opens windows with cv2.imshow, and the headless build has no
+# GUI. (The browser app stereo_web.py would run on the headless build too, since
+# it streams to a browser instead of opening windows -- but install the GUI build
+# so both programs work.)
 opencv-contrib-python>=4.8
 numpy>=1.24
+click>=8.0           # command-line options for stereo_web.py (and the camera tools)
 
 # On the Raspberry Pi 5, do not pip install OpenCV (it compiles for an hour).
 # Use the apt packages instead, which setup.sh already installs:
-#   sudo apt install -y python3-opencv python3-numpy v4l-utils
+#   sudo apt install -y python3-opencv python3-numpy v4l-utils python3-click
