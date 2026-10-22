@@ -427,40 +427,51 @@ class StereoRig:
         display = left_img.copy()
         pts_3d = []
         readout = "Click one point for distance, two for size."
+        big_text = None          # large on-image overlay (distance or size)
         for (x, y) in self._points:
             patch = xyz[max(0, y - 2):y + 3, max(0, x - 2):x + 3].reshape(-1, 3)
             patch_d = disparity[max(0, y - 2):y + 3, max(0, x - 2):x + 3].reshape(-1)
             good = patch[patch_d > 0]
             if len(good) == 0:
-                cv2.circle(display, (x, y), 6, (0, 0, 255), 2)
-                cv2.putText(display, "no match", (x + 10, y),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                cv2.circle(display, (x, y), 7, (0, 0, 255), 2)
                 continue
             p = np.median(good, axis=0)
             pts_3d.append(p)
-            cv2.circle(display, (x, y), 6, (0, 255, 0), 2)
-            cv2.putText(display, f"{p[2] / 10:.1f} cm", (x + 10, y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            cv2.circle(display, (x, y), 7, (0, 255, 0), 2)
 
         if len(pts_3d) == 1:
+            big_text = f"{pts_3d[0][2] / 10:.1f} cm"
             readout = f"Distance: {pts_3d[0][2] / 10:.1f} cm"
         elif len(pts_3d) == 2:
             size_mm = float(np.linalg.norm(pts_3d[0] - pts_3d[1]))
-            cv2.line(display, self._points[0], self._points[1], (255, 200, 0), 2)
-            cv2.putText(display, f"size: {size_mm / 10:.1f} cm", (10, 60),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 200, 0), 2)
+            cv2.line(display, self._points[0], self._points[1], (255, 200, 0), 3)
+            big_text = f"{size_mm / 10:.1f} cm"
             readout = (f"Size: {size_mm / 10:.1f} cm   "
                        f"(depths {pts_3d[0][2] / 10:.1f} / {pts_3d[1][2] / 10:.1f} cm)")
+        elif self._points and not pts_3d:
+            big_text = "no match"
         if mode_note:
             readout = f"[{mode_note}]  " + readout
 
-        disp_vis = cv2.normalize(disparity, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-        disp_vis = cv2.applyColorMap(disp_vis, cv2.COLORMAP_JET)
-        both = np.hstack((display, disp_vis))
-        # Scale the combined image down for the browser only if it's large.
-        if both.shape[1] > 1600:
-            both = cv2.resize(both, None, fx=0.5, fy=0.5)
-        return self._encode(both), readout
+        # Big readout burned into the image, scaled to the frame size, with a
+        # dark outline so it's legible over any background.
+        if big_text:
+            h, w = display.shape[:2]
+            scale = w / 500.0                    # ~2.5 at 1280 wide
+            thick = max(2, int(round(scale * 2)))
+            (tw, th), _ = cv2.getTextSize(big_text, cv2.FONT_HERSHEY_SIMPLEX, scale, thick)
+            org = (20, 20 + th)
+            colour = (0, 255, 0) if big_text != "no match" else (0, 0, 255)
+            cv2.putText(display, big_text, org, cv2.FONT_HERSHEY_SIMPLEX, scale,
+                        (0, 0, 0), thick + 3, cv2.LINE_AA)        # outline
+            cv2.putText(display, big_text, org, cv2.FONT_HERSHEY_SIMPLEX, scale,
+                        colour, thick, cv2.LINE_AA)               # fill
+
+        # One video only (the left camera). Scale down for the browser if large.
+        out = display
+        if out.shape[1] > 1280:
+            out = cv2.resize(out, None, fx=0.5, fy=0.5)
+        return self._encode(out), readout
 
     # --- shared ------------------------------------------------------------
     @staticmethod
@@ -488,8 +499,9 @@ PAGE = """<!doctype html>
   .tabs button.active { background:#2bb3a3; color:#06231f; font-weight:600; }
   .panel { display:none; padding:0 16px 20px; }
   .panel.active { display:block; }
-  img#view { max-width:100%; height:auto; border:1px solid #333; border-radius:6px;
-             display:block; }
+  img#view, img#view2 { max-width:100%; height:auto; border:1px solid #333;
+             border-radius:6px; display:block; }
+  img#view2 { cursor:crosshair; }
   .controls { margin:12px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .controls button { font-size:15px; padding:8px 14px; border:0; border-radius:6px;
                      background:#2a3b4d; color:#cfe8ef; cursor:pointer; }
@@ -521,10 +533,10 @@ PAGE = """<!doctype html>
 </div>
 
 <div id="panel-mea" class="panel">
-  <p class="hint">Click one point on the <b>left image</b> for its distance; click a
-     second point for the size between the two. A third click starts over. The
-     right half is the depth map (not clickable). In no-calibration mode the
-     readout is tagged <i>[quick (no calibration)]</i> and is approximate.</p>
+  <p class="hint">Click one point on the video for its <b>distance</b>; click a
+     second point for the <b>size</b> between the two. A third click starts over.
+     The value is shown large on the image. In no-calibration mode it is
+     approximate (the status line is tagged <i>[quick (no calibration)]</i>).</p>
   <img id="view2" alt="measure view" onclick="clickMeasure(event)">
   <div class="controls">
     <button onclick="clearMeasure()">Clear points</button>
@@ -581,15 +593,12 @@ async function resetcal(){
 }
 function clickMeasure(ev){
   const img = ev.target;
-  // The served image is two panels side by side: the LEFT half is the camera
-  // image (clickable), the RIGHT half is the depth map (ignore). Work in
-  // fractions of the displayed box so it is correct at any resolution or zoom.
+  // The measure image is a single video panel. Send the click as a fraction of
+  // the displayed box (0..1 across and down), so it maps to the right pixel at
+  // any resolution or browser zoom.
   const r = img.getBoundingClientRect();
-  const fx = (ev.clientX - r.left) / r.width;   // 0..1 across the whole (two-panel) image
-  const fy = (ev.clientY - r.top) / r.height;   // 0..1 down
-  if (fx >= 0.5) return;                         // clicked the depth map, not the image
-  const u = fx * 2;                              // 0..1 across the LEFT panel only
-  const v = fy;                                  // 0..1 down
+  const u = (ev.clientX - r.left) / r.width;    // 0..1 across
+  const v = (ev.clientY - r.top) / r.height;    // 0..1 down
   fetch('/measure/click?u=' + u.toFixed(4) + '&v=' + v.toFixed(4), {method:'POST'});
 }
 async function clearMeasure(){ await fetch('/measure/clear', {method:'POST'}); }
