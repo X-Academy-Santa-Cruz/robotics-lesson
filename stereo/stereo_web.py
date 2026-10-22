@@ -262,26 +262,31 @@ class StereoRig:
         self._points = []          # up to 2 (x, y)
 
     @staticmethod
-    def _warm_up(cap_l, cap_r, max_frames=40, timeout_s=6.0):
-        """Read and discard frames until BOTH cameras give a non-black image.
+    def _warm_up(cap_l, cap_r, timeout_s=10.0, need_streak=5, bright=15.0):
+        """Read and discard frames until BOTH cameras are bright AT THE SAME TIME
+        for several consecutive frames.
 
         Logitech C270s return nearly-black frames for the first ~1-2 seconds
-        after opening. Without this, the live view (and an early measurement)
-        sees black. Returns once both are bright, or after a timeout.
+        after opening, and the two cameras come up at different times (one may be
+        bright while the other is still black). We must wait until BOTH are bright
+        together and stay that way, or the live view serves a black panel.
         """
         deadline = time.monotonic() + timeout_s
-        ok_l = ok_r = False
-        for _ in range(max_frames):
+        streak = 0
+        while time.monotonic() < deadline:
             cap_l.grab(); cap_r.grab()
             rl, fl = cap_l.retrieve()
             rr, fr = cap_r.retrieve()
-            if rl and fl is not None and fl.mean() > 5.0:
-                ok_l = True
-            if rr and fr is not None and fr.mean() > 5.0:
-                ok_r = True
-            if (ok_l and ok_r) or time.monotonic() > deadline:
-                break
+            l_ok = rl and fl is not None and fl.mean() > bright
+            r_ok = rr and fr is not None and fr.mean() > bright
+            if l_ok and r_ok:
+                streak += 1
+                if streak >= need_streak:
+                    return
+            else:
+                streak = 0          # both must be bright simultaneously
             time.sleep(0.05)
+        # Timed out: serve whatever we have; the capture loop + guard take over.
 
     # --- capture thread ----------------------------------------------------
     def _capture_loop(self):
