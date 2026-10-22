@@ -86,6 +86,48 @@ DEFAULT_HFOV_DEG = 60.0          # horizontal field of view (Logitech C270 ~ 60 
 IS_MAC = platform.system() == "Darwin"
 IS_LINUX = platform.system() == "Linux"
 
+# Auto-detect uses the camera's USB product name. The Logitech C270 reports
+# "C270"; override with --match if your cameras report something else.
+DEFAULT_CAMERA_MATCH = "C270"
+
+
+# ---------------------------------------------------------------------------
+# Auto-detect the two stereo cameras by name (Linux), so you don't have to
+# chase /dev/videoN indexes that renumber every reboot/replug.
+# ---------------------------------------------------------------------------
+def autodetect_cameras(match=DEFAULT_CAMERA_MATCH):
+    """Return (left_idx, right_idx) for the two matching cameras, or None.
+
+    On Linux, reads /sys/class/video4linux to find the capture nodes whose USB
+    product name contains `match` (default "C270"). Each physical camera exposes
+    several /dev/videoN nodes; only the lowest-numbered one per physical device
+    actually streams, so we keep that one. Returns the two lowest indexes, sorted
+    (so "left" is the lower index); None if it can't find exactly two.
+    """
+    if not IS_LINUX:
+        return None
+    import glob
+    seen = {}   # usb device path -> lowest video index with a matching name
+    for node in sorted(glob.glob("/sys/class/video4linux/video*")):
+        idx = int(node.rsplit("video", 1)[1])
+        try:
+            name = open(node + "/name").read().strip()
+        except OSError:
+            continue
+        if match.lower() not in name.lower():
+            continue
+        # Group by the USB device so the two nodes of one camera count once.
+        try:
+            dev = os.path.realpath(node + "/device")
+        except OSError:
+            dev = str(idx)
+        if dev not in seen or idx < seen[dev]:
+            seen[dev] = idx
+    idxs = sorted(seen.values())
+    if len(idxs) >= 2:
+        return idxs[0], idxs[1]
+    return None
+
 
 # ---------------------------------------------------------------------------
 # Camera helpers  (same behaviour as stereo_measure.py)
@@ -728,8 +770,12 @@ def local_ip():
 
 # ---------------------------------------------------------------------------
 @click.command(help="Calibrate and measure with two USB webcams, from a browser.")
-@click.option("--left", type=int, default=0, show_default=True, help="Left camera index.")
-@click.option("--right", type=int, default=1, show_default=True, help="Right camera index.")
+@click.option("--left", type=int, default=None,
+              help="Left camera index. Omit to auto-detect the two C270s by name.")
+@click.option("--right", type=int, default=None,
+              help="Right camera index. Omit to auto-detect.")
+@click.option("--match", default=DEFAULT_CAMERA_MATCH, show_default=True,
+              help="Name substring used to auto-detect the cameras (Linux).")
 @click.option("--port", type=int, default=8010, show_default=True, help="Web server port.")
 @click.option("--no-calib", "no_calib", is_flag=True,
               help="Skip the checkerboard: measure straight from --baseline and "
@@ -743,10 +789,24 @@ def local_ip():
               help="Focal length in pixels (for --no-calib). Overrides --hfov if given.")
 @click.option("--list", "list_only", is_flag=True,
               help="List camera indexes and exit (don't start the server).")
-def main(left, right, port, no_calib, baseline, hfov, focal_px, list_only):
+def main(left, right, match, port, no_calib, baseline, hfov, focal_px, list_only):
     if list_only:
         list_cameras()
         return
+
+    # Auto-detect the two cameras by name unless BOTH indexes were given.
+    if left is None or right is None:
+        found = autodetect_cameras(match)
+        if found is None:
+            sys.exit(
+                f"Could not auto-detect two '{match}' cameras. Plug both in, or "
+                f"pass --left N --right M (run with --list to see indexes).")
+        auto_l, auto_r = found
+        if left is None:
+            left = auto_l
+        if right is None:
+            right = auto_r
+        print(f"Auto-detected '{match}' cameras: left={left}, right={right}")
 
     try:
         rig = StereoRig(left, right, quick=no_calib, baseline_mm=baseline,
