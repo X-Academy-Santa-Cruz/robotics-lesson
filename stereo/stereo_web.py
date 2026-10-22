@@ -62,10 +62,12 @@ import numpy as np  # noqa: E402
 # ---------------------------------------------------------------------------
 # Settings  (kept identical to stereo_measure.py so calibrations interchange)
 # ---------------------------------------------------------------------------
-# Preferred capture size. The camera may not support it (many webcams only give
-# 640x480); we ask for this but then USE WHATEVER THE CAMERA ACTUALLY RETURNS,
-# so the image is never cropped to a size the camera isn't sending.
-PREF_W, PREF_H = 1280, 720
+# Preferred capture size. Use the camera's NATIVE 4:3 aspect ratio: the Logitech
+# C270 sensor is 4:3, and asking it for a 16:9 size (like 1280x720) makes the
+# driver crop/zoom into the middle of the sensor, which looks "zoomed in" and
+# throws off the field of view (and therefore the --no-calib focal length). We
+# ask for 1280x960 (full 4:3) but then USE WHATEVER THE CAMERA ACTUALLY RETURNS.
+PREF_W, PREF_H = 1280, 960
 CB_COLS, CB_ROWS = 9, 6          # inner corners of the checkerboard
 CB_SQUARE_MM = 25.0              # size of one square in millimetres
 CALIB_FILE = "stereo_calib.npz"
