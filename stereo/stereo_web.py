@@ -209,6 +209,11 @@ class StereoRig:
         self.cap_l = open_camera(left_idx)
         self.cap_r = open_camera(right_idx)
 
+        # C270s wake up slowly: the first ~1-2 seconds of frames come back nearly
+        # black. Flush them here so the first thing the page shows is a real
+        # image, not a black warm-up frame.
+        self._warm_up(self.cap_l, self.cap_r)
+
         # The real capture size (both cameras are made to match the left one).
         self.frame_w = int(self.cap_l.get(cv2.CAP_PROP_FRAME_WIDTH)) or PREF_W
         self.frame_h = int(self.cap_l.get(cv2.CAP_PROP_FRAME_HEIGHT)) or PREF_H
@@ -255,6 +260,28 @@ class StereoRig:
 
         # Measure click state, in full-frame rectified-left pixels.
         self._points = []          # up to 2 (x, y)
+
+    @staticmethod
+    def _warm_up(cap_l, cap_r, max_frames=40, timeout_s=6.0):
+        """Read and discard frames until BOTH cameras give a non-black image.
+
+        Logitech C270s return nearly-black frames for the first ~1-2 seconds
+        after opening. Without this, the live view (and an early measurement)
+        sees black. Returns once both are bright, or after a timeout.
+        """
+        deadline = time.monotonic() + timeout_s
+        ok_l = ok_r = False
+        for _ in range(max_frames):
+            cap_l.grab(); cap_r.grab()
+            rl, fl = cap_l.retrieve()
+            rr, fr = cap_r.retrieve()
+            if rl and fl is not None and fl.mean() > 5.0:
+                ok_l = True
+            if rr and fr is not None and fr.mean() > 5.0:
+                ok_r = True
+            if (ok_l and ok_r) or time.monotonic() > deadline:
+                break
+            time.sleep(0.05)
 
     # --- capture thread ----------------------------------------------------
     def _capture_loop(self):
