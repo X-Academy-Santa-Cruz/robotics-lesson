@@ -472,14 +472,19 @@ class StereoRig:
             cv2.putText(display, big_text, org, cv2.FONT_HERSHEY_SIMPLEX, scale,
                         colour, thick, cv2.LINE_AA)               # fill
 
-        # One video only (the left camera). Cap the served width so it can't
-        # overflow the browser panel (clicks use fractions, so scaling is safe).
-        out = display
-        max_w = 960
-        if out.shape[1] > max_w:
-            s = max_w / out.shape[1]
-            out = cv2.resize(out, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
-        return self._encode(out), readout
+        # Show BOTH cameras side by side (left | right), like the calibrate page.
+        # The LEFT panel carries the click dots / measurement line; the right
+        # panel is the second camera's view so you can see both feeds and judge
+        # alignment. Clicks land on the left panel (the page sends fractions and
+        # rejects the right half).
+        right_show = right_img.copy()
+        both = np.hstack((display, right_show))
+        # Cap the served width so two panels can't overflow the browser.
+        max_w = 1280
+        if both.shape[1] > max_w:
+            s = max_w / both.shape[1]
+            both = cv2.resize(both, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
+        return self._encode(both), readout
 
     # --- shared ------------------------------------------------------------
     @staticmethod
@@ -509,7 +514,7 @@ PAGE = """<!doctype html>
   .tabs button.active { background:#2bb3a3; color:#06231f; font-weight:600; }
   .panel { display:none; padding:0 16px 20px; }
   .panel.active { display:block; }
-  img#view, img#view2 { display:block; width:100%; max-width:960px; height:auto;
+  img#view, img#view2 { display:block; width:100%; max-width:1280px; height:auto;
              border:1px solid #333; border-radius:6px; }
   img#view2 { cursor:crosshair; }
   .controls { margin:12px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
@@ -543,10 +548,11 @@ PAGE = """<!doctype html>
 </div>
 
 <div id="panel-mea" class="panel">
-  <p class="hint">Click one point on the video for its <b>distance</b>; click a
-     second point for the <b>size</b> between the two. A third click starts over.
-     The value is shown large on the image. In no-calibration mode it is
-     approximate (the status line is tagged <i>[quick (no calibration)]</i>).</p>
+  <p class="hint">Both camera views are shown (left | right). Click on the
+     <b>left</b> image: one point for its <b>distance</b>, a second point for the
+     <b>size</b> between the two. A third click starts over. The value is shown
+     large on the left image. In no-calibration mode it is approximate (the
+     status line is tagged <i>[quick (no calibration)]</i>).</p>
   <img id="view2" alt="measure view" onclick="clickMeasure(event)">
   <div class="controls">
     <button onclick="clearMeasure()">Clear points</button>
@@ -603,12 +609,15 @@ async function resetcal(){
 }
 function clickMeasure(ev){
   const img = ev.target;
-  // The measure image is a single video panel. Send the click as a fraction of
-  // the displayed box (0..1 across and down), so it maps to the right pixel at
-  // any resolution or browser zoom.
+  // The measure image is two panels side by side (left | right). Only the LEFT
+  // panel is clickable. Work in fractions of the displayed box so it is correct
+  // at any size or zoom.
   const r = img.getBoundingClientRect();
-  const u = (ev.clientX - r.left) / r.width;    // 0..1 across
-  const v = (ev.clientY - r.top) / r.height;    // 0..1 down
+  const fx = (ev.clientX - r.left) / r.width;   // 0..1 across the whole image
+  const fy = (ev.clientY - r.top) / r.height;   // 0..1 down
+  if (fx >= 0.5) return;                         // clicked the right camera, ignore
+  const u = fx * 2;                              // 0..1 across the LEFT panel only
+  const v = fy;
   fetch('/measure/click?u=' + u.toFixed(4) + '&v=' + v.toFixed(4), {method:'POST'});
 }
 async function clearMeasure(){ await fetch('/measure/clear', {method:'POST'}); }
