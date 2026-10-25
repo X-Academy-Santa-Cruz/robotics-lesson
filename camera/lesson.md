@@ -101,55 +101,21 @@ sudo ./setup.sh
 ```
 
 It will ask for your password (because it uses `sudo`). When it finishes,
-skip ahead to [running the simple version](#start-here-the-simple-version-camera_simplepy).
-If you'd rather install just the camera packages yourself, do the steps by
-hand below.
-
-### 1. Install pip3
-
-```bash
-sudo apt-get update
-sudo apt-get install python3-pip
-```
-
-### 2. Install the Python modules with apt-get (recommended on the Pi)
-
-Installing the modules through `apt-get` gets versions already built for the
-Pi, which is faster and avoids compile errors:
-
-```bash
-sudo apt-get install python3-opencv python3-flask python3-click
-```
-
-That's everything the two programs need:
-
-| Module | apt package | Used by |
-|---|---|---|
-| OpenCV | `python3-opencv` | both programs (reads the camera, makes JPEGs) |
-| Flask | `python3-flask` | `camera_simple.py` (the web server) |
-| click | `python3-click` | `stream_server.py` (command-line options) |
-
-Once these are installed you can skip straight to running the programs.
+everything the camera programs need (OpenCV, Flask, click) is installed and the
+shared course virtual environment at `~/robotics-lesson/.venv` is ready.
 
 ### The shared virtual environment
 
-The setup script also creates one **shared virtual environment** for the whole
-course at the repo root, `~/robotics-lesson/.venv`. It's made with
-`--system-site-packages`, so it already sees the apt modules above (OpenCV,
-Flask, click) — the camera lesson needs nothing extra pip-installed. Activate
-it before running the lessons so every lesson uses the same Python:
+`setup.sh` creates one **shared virtual environment** for the whole course at
+`~/robotics-lesson/.venv`, and every lesson uses it — you never make a per-lesson
+venv or `pip install` anything yourself. In PyCharm, point the project
+interpreter at `~/robotics-lesson/.venv/bin/python` once (see the
+[PyCharm lesson](../pycharm/lesson.md)) and every lesson just works. To run from
+a terminal instead, activate it first:
 
 ```bash
-source ~/robotics-lesson/.venv/bin/activate
+source ~/robotics-lesson/.venv/bin/activate   # prompt shows (.venv); 'deactivate' when done
 ```
-
-Your prompt shows `(.venv)` while it's active; run `deactivate` when you're
-done. (In PyCharm, point the project interpreter at
-`~/robotics-lesson/.venv/bin/python` instead — see the PyCharm lesson.)
-
-If you ever set this lesson up **off** the Pi, where those apt packages don't
-exist, `pip install -r requirements.txt` inside the active venv installs the
-pip equivalents listed in that file's comments.
 
 ## Start here: the simple version (`camera_simple.py`)
 
@@ -337,4 +303,4 @@ Official documentation for the libraries these programs use:
 
 ### Where this lesson fits
 
-Step 6 of 11 in the course. ← Previous: **Debugging** (`../debugging/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Thruster Control** (`../thrusters/lesson.md`) →
+Step 7 of 12 in the course. ← Previous: **Debugging** (`../debugging/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Thruster Control** (`../thrusters/lesson.md`) →

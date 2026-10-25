@@ -4,7 +4,7 @@ const lines = fs.readFileSync('build_workbook.js','utf8').split('\n');
 const map = [
   ['cover',267,282],['toc',285,289],['howto',292,344],['sec1',347,380],
   ['sec2',383,559],['sec3',562,661],['sec4',664,823],['sec5',826,886],
-  ['sec6',889,1152],['sec7',1155,1383],['sec8',1386,1460],['sec9',1463,1548],['dashboard',1551,1609],['appendix',1612,1688],['reference',1691,1796],['prompts',1798,1916],
+  ['sec6',889,1152],['sec7',1155,1370],['sec8',1373,1448],['sec9',1451,1536],['dashboard',1539,1597],['appendix',1600,1676],['reference',1679,1784],['prompts',1786,1904],
 ];
 let out = '// AUTO-EXTRACTED content blocks from build_workbook.js. Each returns an array.\n';
 out += 'module.exports = function(H){\n';

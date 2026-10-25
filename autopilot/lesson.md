@@ -75,6 +75,16 @@ python3 autopilot.py
 Press `Ctrl+C` any time to stop; the program always sends a stop command on
 its way out.
 
+### Running it in PyCharm
+
+`autopilot.py` drives the thrusters, so it runs **on the Pi** — use the **Pi SSH
+interpreter** in its Run configuration (see the
+[PyCharm lesson](../pycharm/lesson.md)). Put `--dry-run` in the configuration's
+**Parameters** field while you're getting the pattern right; clear it to run for
+real (props off or submerged). The red ■ in the Run tool window stops it and, as
+from the terminal, the program sends a stop command on its way out. Debug mode
+and breakpoints are especially handy here for stepping through your pattern logic.
+
 ## Using an AI assistant (Claude, ChatGPT, or Gemini) well
 
 The AI is a fast, tireless helper that sometimes confidently gets things wrong.
@@ -166,4 +176,4 @@ Show a mentor:
 
 ### Where this lesson fits
 
-Step 11 of 11 in the course. ← Previous: **ROV Dashboard** (`../dashboard/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; This is the last lesson — you've finished the course.
+Step 12 of 12 in the course. ← Previous: **ROV Dashboard** (`../dashboard/lesson.md`)

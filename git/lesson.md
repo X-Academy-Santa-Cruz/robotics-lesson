@@ -119,4 +119,4 @@ For this course, your instructor will tell you whether to work directly on
 
 ### Where this lesson fits
 
-Step 3 of 11 in the course. ← Previous: **Hello, World** (`../hello/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **PyCharm** (`../pycharm/lesson.md`) →
+Step 3 of 12 in the course. ← Previous: **Hello, World** (`../hello/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **PyCharm** (`../pycharm/lesson.md`) →

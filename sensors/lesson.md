@@ -64,17 +64,10 @@ Both versions below print the same temperatures and draw the same graph.
 
 ## The library version: `temperature.py`
 
-Install the driver (the setup script may already have done this). The driver is
-pip-only, so install it **into the shared course venv** — matplotlib comes from
-apt and the venv already sees it:
-
-```bash
-source ~/robotics-lesson/.venv/bin/activate   # prompt shows (.venv)
-pip install circuitpython-stts22h adafruit-blinka adafruit-lgpio
-```
-
-`adafruit-lgpio` is the GPIO backend Blinka uses on the Pi 5. Without it,
-`import board` fails with `ModuleNotFoundError: No module named 'lgpio'`.
+Everything this needs is already installed: `setup.sh` (run once at the start of
+the course) put the `stts22h` CircuitPython driver, Blinka, and the Pi 5 GPIO
+backend (`adafruit-lgpio`) into the shared course virtual environment, along with
+matplotlib. You don't install anything here — just use that venv.
 
 > **Run it inside the venv.** `import board` only works with the venv active —
 > your prompt should show `(.venv)`. If you run `python3 temperature.py`
@@ -109,13 +102,8 @@ Press `Ctrl+C` to stop.
 ## The register-level alternative: `temperature_smbus2.py`
 
 This version uses only `smbus2` and talks to the STTS22H's registers directly.
-`smbus2` is pip-only; install it into the shared venv if you haven't
-(matplotlib comes from apt):
-
-```bash
-source ~/robotics-lesson/.venv/bin/activate
-pip install smbus2
-```
+`smbus2` is already in the shared venv (`setup.sh` installed it), so there's
+nothing to install.
 
 ### How it reads the chip
 
@@ -172,12 +160,9 @@ live `plt.ion()` / `plt.pause()` loop, so the window stays blank.
 
 **The scripts already handle this for you.** They force matplotlib's `TkAgg`
 backend before plotting, which opens a normal, animating window from PyCharm
-just like the terminal. So on an up-to-date copy of the code it should simply
-work — make sure you have the latest, and that the Tk backend is installed:
-
-```bash
-sudo apt-get install -y python3-tk   # the setup script now does this too
-```
+just like the terminal. The Tk backend itself is installed by `setup.sh`, so on
+an up-to-date copy of the code it should simply work — just make sure you have
+the latest code.
 
 If you're writing your own plotting script, do the same at the top, **before**
 `import matplotlib.pyplot`:
@@ -219,7 +204,7 @@ message instead of leaving a dead window.) Pick one:
 | Problem | Likely cause and fix |
 |---|---|
 | `i2cdetect` doesn't show `3c` | Re-seat the Qwiic cable; confirm the Servo HAT is seated and powered. |
-| `ModuleNotFoundError: No module named 'lgpio'` (from `import board`) | Blinka's Pi 5 GPIO backend is missing. With the venv active: `pip install adafruit-lgpio` (or `sudo apt-get install -y python3-lgpio`). |
+| `ModuleNotFoundError: No module named 'lgpio'` (from `import board`) | You're not using the shared venv (or `setup.sh` didn't finish). Select the `~/robotics-lesson/.venv` interpreter in PyCharm, or `source ~/robotics-lesson/.venv/bin/activate`; if it's still missing, re-run `setup.sh`. |
 | `No module named 'board'` / `'stts22h'` | You're running the system Python, not the venv. Activate it first: `source ~/robotics-lesson/.venv/bin/activate` (prompt shows `(.venv)`). |
 | `RuntimeError` / WHO_AM_I mismatch | Wrong chip or address, or a loose cable — re-check `i2cdetect -y 1`. |
 | `Permission denied` on `/dev/i2c-1` | Add your user to the i2c group: `sudo usermod -aG i2c $USER`, then log out and back in (the setup script does this). |
@@ -256,4 +241,4 @@ message instead of leaving a dead window.) Pick one:
 
 ### Where this lesson fits
 
-Step 8 of 11 in the course. ← Previous: **Thruster Control** (`../thrusters/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Networked Control (Piloting)** (`../control/lesson.md`) →
+Step 9 of 12 in the course. ← Previous: **Thruster Control** (`../thrusters/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Networked Control (Piloting)** (`../control/lesson.md`) →

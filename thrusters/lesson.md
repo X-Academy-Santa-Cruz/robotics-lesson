@@ -111,12 +111,10 @@ power.
 > appears with `i2cdetect -y 1`. If you'd rather understand each step, do
 > them by hand below.
 
-Ubuntu on the Pi doesn't have I2C turned on by default.
-
-```bash
-sudo apt update
-sudo apt install -y i2c-tools python3-smbus
-```
+Ubuntu on the Pi doesn't have I2C turned on by default. `setup.sh` installs the
+I2C tools for you; the steps below are the manual equivalent if you want to
+understand them. (With `setup.sh` you only need the `i2cdetect -y 1` check at the
+end.)
 
 Enable the I2C interface by editing the boot config:
 
@@ -148,24 +146,16 @@ i2cdetect -y 1
 You should see `40` appear in the grid — that's the PCA9685 chip on the
 Hat, at its default address, `0x40`.
 
-## 4. Install the Python library
+## 4. The Python library
 
-The thruster code uses the SparkFun **pi-servo-hat** library, which drives
-the PCA9685 chip on the Servo HAT. It's pip-only (there's no apt package), so
-the top-level `setup.sh` installs it into the shared course virtual
-environment at `~/robotics-lesson/.venv`. If you ran `setup.sh` you can skip
-ahead.
-
-To install just this library by hand, do it **inside the shared venv** so it
-never touches the system Python:
-
-```bash
-source ~/robotics-lesson/.venv/bin/activate   # prompt shows (.venv)
-pip install -r requirements.txt               # installs pi-servo-hat
-```
-
-This one library is all the thruster code needs — it talks to the Servo HAT
-over I2C and does the pulse-width math for us.
+The thruster code uses the SparkFun **pi-servo-hat** library, which drives the
+PCA9685 chip on the Servo HAT. `setup.sh` already installed it into the shared
+course virtual environment at `~/robotics-lesson/.venv` — you don't install
+anything. In PyCharm, select the `~/robotics-lesson/.venv` interpreter (see the
+[PyCharm lesson](../pycharm/lesson.md)); from a terminal, `source
+~/robotics-lesson/.venv/bin/activate` first. That one library is all the thruster
+code needs — it talks to the Servo HAT over I2C and does the pulse-width math for
+us.
 
 ## 5. Reading the code: `thruster_control.py`
 
@@ -281,6 +271,23 @@ stop
 Each thruster should visibly respond during its step, and come to a full
 stop at the end. If a thruster spins the wrong direction, see below.
 
+### Running it in PyCharm
+
+This code talks to the Servo HAT over I2C, so it has to run **on the Pi**. In
+PyCharm, that means using the **Pi SSH interpreter** you set up in the
+[PyCharm lesson](../pycharm/lesson.md):
+
+1. Open `thrusters/thruster_control.py`.
+2. Make sure the Run configuration's interpreter is the **Pi SSH** one (not your
+   laptop's) — only the Pi has the Servo HAT.
+3. Click **Run ▶**. PyCharm uploads the file to the Pi, runs it there, and shows
+   the Pi's output in the Run tool window. The red ■ stops it, just like
+   `Ctrl+C`.
+
+The terminal commands above and the Run button do the same thing — use whichever
+you prefer. (Keep the propeller-safety steps from the top of this lesson in mind
+either way.)
+
 ### If it doesn't work
 
 | Problem | Likely cause |
@@ -317,4 +324,4 @@ stop at the end. If a thruster spins the wrong direction, see below.
 
 ### Where this lesson fits
 
-Step 7 of 11 in the course. ← Previous: **Camera** (`../camera/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **I2C Temperature Sensor** (`../sensors/lesson.md`) →
+Step 8 of 12 in the course. ← Previous: **Camera** (`../camera/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **I2C Temperature Sensor** (`../sensors/lesson.md`) →

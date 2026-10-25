@@ -279,4 +279,4 @@ sudo poweroff
 
 ### Where this lesson fits
 
-Step 1 of 11 in the course. This is the first lesson. &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Hello, World** (`../hello/lesson.md`) →
+Step 1 of 12 in the course. Next: **Hello, World** (`../hello/lesson.md`) →

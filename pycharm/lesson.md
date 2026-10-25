@@ -13,11 +13,22 @@ without manually copying files back and forth every time.
 3. If prompted "Trust and Open Project?", choose **Trust Project** — this
    lets PyCharm run helper tools (like code inspections) for this project.
 
-## 2. Setting up a remote interpreter on the Pi
+The repo already ships a PyCharm project (a small, shared `.idea/` is committed),
+so it opens as **one project covering every lesson**, all using the **same
+interpreter**. That interpreter is named **`robotics-lesson venv`** and points at
+the shared course virtual environment. You don't make a project or a venv — you
+just connect that one named interpreter to the actual venv once (next). Your own
+PyCharm settings (window layout, local run history) are *not* committed, so you
+won't clash with classmates.
+
+## 2. Pointing the shared interpreter at the Pi's venv
 
 Your laptop doesn't have a USB camera plugged into *it* — the Pi does. So
 code that imports `cv2` and opens the camera needs to actually **run on the
-Pi**, not on your laptop. PyCharm Professional can do this directly:
+Pi**, not on your laptop. PyCharm Professional can do this directly, and the
+course project is already set up to use one shared interpreter named
+`robotics-lesson venv` for every lesson — you just tell PyCharm what that name
+points to:
 
 1. **Settings/Preferences \> Project: robotics-lesson \> Python Interpreter**
 2. **Add Interpreter \> On SSH...**
@@ -26,14 +37,23 @@ Pi**, not on your laptop. PyCharm Professional can do this directly:
 4. PyCharm will ask where to sync files on the Pi — this creates a
    **deployment mapping**: your local `robotics-lesson` folder on your
    laptop is mirrored to a folder on the Pi.
-5. Point the interpreter at the **shared course virtual environment** the
-   setup script created on the Pi: `~/robotics-lesson/.venv/bin/python`.
-   One interpreter serves every lesson — it was built with
-   `--system-site-packages`, so it sees both the apt modules and the
-   pip-only libraries the setup script installed into it.
+5. Point the interpreter at the **shared course virtual environment** that
+   `setup.sh` created on the Pi: `~/robotics-lesson/.venv/bin/python`. When
+   PyCharm asks for the interpreter's name, call it **`robotics-lesson venv`** so
+   it matches the name the committed project already uses — then every lesson
+   picks it up automatically. It was built with `--system-site-packages`, so it
+   sees both the apt modules and the pip-only libraries `setup.sh` installed.
 
 Once this is set up, PyCharm's autocomplete and error-checking reflect what's
-actually installed *on the Pi*, and you're ready to run code there.
+actually installed *on the Pi*, and you're ready to run code there. **This is the
+only interpreter setup you do for the whole course** — every lesson shares it.
+
+> **Laptop-only lessons.** A few lessons run on the laptop, not the Pi (the
+> [First Code](../firstcode/lesson.md) dashboard look, [stereo](../stereo/lesson.md),
+> and `pilot.py` in the [control lesson](../control/lesson.md)). For those, add a
+> **local** interpreter pointed at the laptop's own
+> `~/robotics-lesson/.venv/bin/python` (made by `setup_x86.sh`) and pick it in
+> that script's Run configuration. Same shared venv idea, just on the laptop.
 
 ### Deployment sync vs. git — don't mix these up
 
@@ -80,9 +100,11 @@ Because the whole course shares a single virtual environment
 interpreter — the one you set up in step 5. `stream_server.py`,
 `rov_server.py`, `thruster_control.py`, and the I2C lessons all import from
 the same venv, which has every package they need. There's no second
-interpreter to add. If a script ever reports `ModuleNotFoundError`, that's
-PyCharm telling you the interpreter is missing a package — re-run `setup.sh`
-on the Pi, or `pip install` it into the active venv.
+interpreter to add. If a script ever reports `ModuleNotFoundError`, it almost
+always means the interpreter isn't the shared venv (or `setup.sh` didn't
+finish) — check the interpreter is `~/robotics-lesson/.venv`, and re-run
+`setup.sh` on the Pi if a package really is missing. You never pip-install
+packages per lesson; `setup.sh` is the one place software gets installed.
 
 To run both at once:
 
@@ -209,4 +231,4 @@ again.
 
 ### Where this lesson fits
 
-Step 4 of 11 in the course. ← Previous: **Git Basics** (`../git/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Debugging** (`../debugging/lesson.md`) →
+Step 4 of 12 in the course. ← Previous: **Git Basics** (`../git/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **First Code (Dashboard)** (`../firstcode/lesson.md`) →

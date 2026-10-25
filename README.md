@@ -31,9 +31,22 @@ sudo ./setup.sh
 ```
 
 Reboot and log out/in if the script says to, then confirm the Servo HAT is on
-the I2C bus with `i2cdetect -y 1` (it should show `40`). Each lesson folder
-also has its own, narrower install notes if you prefer to set things up
-lesson by lesson.
+the I2C bus with `i2cdetect -y 1` (it should show `40`).
+
+`setup.sh` is the **only** place software gets installed. It installs every
+library the lessons use and builds **one shared virtual environment** at
+`~/robotics-lesson/.venv` that every lesson uses — you never make a per-lesson
+venv or `pip install` anything yourself. (On an x86 laptop, `setup_x86.sh` does
+the same for the laptop-side lessons.)
+
+### PyCharm
+
+The repo ships a ready-made PyCharm project (a small shared `.idea/` is
+committed) that opens as one project for all lessons and uses a single
+interpreter named **`robotics-lesson venv`**. Open the `robotics-lesson` folder
+in PyCharm and connect that interpreter to the shared venv once — see the
+[PyCharm lesson](pycharm/lesson.md) for the two-minute setup. After that, every
+lesson runs with the correct packages, on the Pi or the laptop.
 
 ## Foundations
 
@@ -46,6 +59,7 @@ new to Linux or version control.
 | Hello, World (your first app in PyCharm) | [`hello/`](hello/lesson.md) |
 | Git Basics | [`git/`](git/lesson.md) |
 | PyCharm for Remote ROV Development | [`pycharm/`](pycharm/lesson.md) |
+| First Code: Run & Read the Dashboard in PyCharm | [`firstcode/`](firstcode/lesson.md) |
 | Debugging: print() vs PyCharm's Debugger | [`debugging/`](debugging/lesson.md) |
 
 ## ROV Lessons

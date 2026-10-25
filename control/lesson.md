@@ -246,9 +246,9 @@ juggling SSH windows.
    cd ~/robotics-lesson/thrusters && python3 ../control/rov_server.py
    ```
 3. **On your laptop** — open the camera stream in a browser
-   (`http://<pi-ip-address>:8000/`), then in a terminal. On the Pi, `pilot.py`
-   only needs pygame, which the setup script installs via apt; if you're on a
-   laptop without it, make a venv there and `pip install -r requirements.txt`:
+   (`http://<pi-ip-address>:8000/`), then run the pilot. `pilot.py` needs pygame,
+   which the setup script already installed into the shared venv; select the
+   `~/robotics-lesson/.venv` interpreter in PyCharm, or activate it in a terminal:
    ```bash
    cd robotics-lesson/control
    python3 pilot.py <pi-ip-address> --calibrate   # find your axis numbers first
@@ -259,6 +259,23 @@ With propellers off (or the thruster submerged and everyone's hands clear),
 confirm each stick moves the expected thruster, then try disconnecting
 your laptop from the network entirely and watch the Pi's terminal print
 the failsafe message and stop the thrusters on its own.
+
+### Running it in PyCharm
+
+This lesson is the clearest example of code running in **two places at once**,
+and PyCharm handles both from one window (see the
+[PyCharm lesson](../pycharm/lesson.md) for setup):
+
+- **`rov_server.py`** runs **on the Pi** → give its Run configuration the **Pi
+  SSH interpreter**.
+- **`pilot.py`** runs **on your laptop** (it reads *your* game controller) → give
+  its Run configuration your **laptop's local interpreter**. Put the Pi's address
+  (and `--calibrate` the first time) in the configuration's **Parameters** field.
+
+Start the Pi-side server config, then the laptop-side pilot config; each gets its
+own tab in the Run tool window, so you can watch both and stop either one
+independently — the same as the terminal commands above, without juggling SSH
+windows.
 
 ### If it doesn't work
 
@@ -301,4 +318,4 @@ the failsafe message and stop the thrusters on its own.
 
 ### Where this lesson fits
 
-Step 9 of 11 in the course. ← Previous: **I2C Temperature Sensor** (`../sensors/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **ROV Dashboard** (`../dashboard/lesson.md`) →
+Step 10 of 12 in the course. ← Previous: **I2C Temperature Sensor** (`../sensors/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **ROV Dashboard** (`../dashboard/lesson.md`) →

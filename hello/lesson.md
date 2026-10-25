@@ -91,4 +91,4 @@ loop on this tiny program first.
 
 ### Where this lesson fits
 
-Step 2 of 11 in the course. ← Previous: **Raspberry Pi & Linux** (`../shell/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Git Basics** (`../git/lesson.md`) →
+Step 2 of 12 in the course. ← Previous: **Raspberry Pi and Linux** (`../shell/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Git Basics** (`../git/lesson.md`) →

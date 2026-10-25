@@ -67,6 +67,26 @@ python3 dashboard.py
 Open **http://<dashboard-machine-ip>:8080/** in a browser. Pilot with
 `pilot.py` as usual and watch the gauges move.
 
+### Running it in PyCharm
+
+You already met this program in the [First Code lesson](../firstcode/lesson.md),
+where you ran it on the **laptop** with the laptop's local interpreter. For the
+full ROV it usually runs **on the Pi** instead, next to the camera and thruster
+server — same code, different interpreter:
+
+- **Dashboard on the Pi:** give `dashboard/dashboard.py`'s Run configuration the
+  **Pi SSH interpreter**, run it, and open `http://<pi-ip>:8080/`.
+- **Dashboard on the laptop:** use the **laptop's local interpreter** and open
+  `http://localhost:8080/` (then pass `--camera-url` only if the camera is on the
+  Pi).
+
+Put any options (`--telemetry-host`, `--port`, …) in the Run configuration's
+**Parameters** field. With the camera stream and `rov_server.py` as their own Run
+configurations (see the [PyCharm](../pycharm/lesson.md) and
+[control](../control/lesson.md) lessons), you can bring the whole stack up from
+one PyCharm window. The Run button and the terminal commands above do the same
+thing.
+
 ### Options
 
 | Program | Option | What it does |
@@ -116,4 +136,4 @@ Open **http://<dashboard-machine-ip>:8080/** in a browser. Pilot with
 
 ### Where this lesson fits
 
-Step 10 of 11 in the course. ← Previous: **Networked Control (Piloting)** (`../control/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Autonomous Driving (AI project)** (`../autopilot/lesson.md`) →
+Step 11 of 12 in the course. ← Previous: **Networked Control (Piloting)** (`../control/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Autonomous Driving (AI project)** (`../autopilot/lesson.md`) →

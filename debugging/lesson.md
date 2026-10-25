@@ -178,4 +178,4 @@ often on the same bug, often within the same five minutes.
 
 ### Where this lesson fits
 
-Step 5 of 11 in the course. ← Previous: **PyCharm** (`../pycharm/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Camera** (`../camera/lesson.md`) →
+Step 6 of 12 in the course. ← Previous: **First Code (Dashboard)** (`../firstcode/lesson.md`) &nbsp;&nbsp;|&nbsp;&nbsp; Next: **Camera** (`../camera/lesson.md`) →
