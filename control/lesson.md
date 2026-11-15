@@ -87,15 +87,17 @@ leave it running at that speed indefinitely.
 
 ```python
 parts = [float(v) for v in data.decode("utf-8").split(",")]
-forward, turn, vertical = parts[0], parts[1], parts[2]
-gripper = parts[3] if len(parts) > 3 else 0.0
-gripper_release = bool(parts[4]) if len(parts) > 4 else False
+forward, strafe, turn, vertical = parts[0], parts[1], parts[2], parts[3]
+gripper = parts[4] if len(parts) > 4 else 0.0
+gripper_release = bool(parts[5]) if len(parts) > 5 else False
 ```
 
-Each packet is just a UTF-8 string like `"0.5,-0.2,0.0,1.0,0"` — comma-separated
-numbers: forward, turn, vertical, the gripper trigger (`0.0` = not squeezing,
-`1.0` = squeezed to grip), and a release flag (`1` = open the gripper to let go,
-`0` = normal). There's no library or framework involved; this is a format we
+Each packet is just a UTF-8 string like `"0.5,-0.2,0.0,0.0,1.0,0"` —
+comma-separated numbers: forward, strafe, turn, vertical, the gripper trigger
+(`0.0` = not squeezing, `1.0` = squeezed to grip), and a release flag (`1` = open
+the gripper to let go, `0` = normal). The four motion values drive the
+six-thruster vectored mix in `rig.drive(forward, strafe, turn, vertical)`.
+There's no library or framework involved; this is a format we
 made up because it's the simplest thing that works and is easy to read if you
 ever print one. Shorter packets still work (missing values default to off), and
 a malformed packet gets skipped (`except (ValueError, IndexError): continue`)
@@ -113,22 +115,23 @@ on.
 `pilot.py` knows two controllers and picks the right one automatically from
 its name:
 
-| Controller | forward | turn | vertical | gripper (trigger) |
-|---|---|---|---|---|
-| Logitech F310 gamepad | **right** stick Y | **right** stick X | **left** stick Y | right trigger (RT) — squeeze to grip |
-| Logitech Extreme 3D Pro ("3D Extreme") | stick pitch | stick twist | throttle slider | trigger button — squeeze to grip |
+| Controller | forward | turn | strafe | vertical | gripper (trigger) |
+|---|---|---|---|---|---|
+| Logitech F310 gamepad | **right** stick Y | **right** stick X | **left** stick X | **left** stick Y | right trigger (RT) — squeeze to grip |
+| Logitech Extreme 3D Pro ("3D Extreme") | stick pitch | stick twist | stick roll | throttle slider | trigger button — squeeze to grip |
 
-On a dual-stick gamepad the layout is: **left stick = vertical (dive and
-surface), right stick = forward/back and turn.** The flight stick has only one
-stick plus a throttle slider, so that stick drives forward/turn and the slider
-drives vertical — there's no separate left stick to use for depth.
+On a dual-stick gamepad the layout is: **left stick = vertical (up/down) and
+strafe (left/right); right stick = forward/back (up/down) and turn
+(left/right).** The flight stick has only one stick plus a throttle slider, so
+that stick's pitch/twist/roll drive forward/turn/strafe and the slider drives
+vertical — there's no separate left stick to use for depth.
 
 Each controller is described by a small `ControllerProfile` near the top of
 `pilot.py` (`PROFILE_EXTREME_3D` and `PROFILE_F310`). A profile lists which
-axis is forward/turn/vertical, which ones to invert so "push up" is positive,
-where the gripper trigger is (a **button** on the 3D Extreme, an analog
-**axis** (RT) on the F310), and which buttons the release and cruise features
-use.
+axis is forward/strafe/turn/vertical, which ones to invert so "push up" is
+positive, where the gripper trigger is (a **button** on the 3D Extreme, an
+analog **axis** (RT) on the F310), and which buttons the release and cruise
+features use.
 
 ### Gripper grip-and-hold, and cruise control
 
@@ -141,7 +144,7 @@ the whole time:
   Squeezing again only tightens it. Press the **release button** to open the
   gripper and let go. (Under the hood the Pi remembers the tightest grip and
   never reopens on its own until you hit release.)
-- **Cruise control** locks **all three** thruster speeds (forward, turn, and
+- **Cruise control** locks **all four** motion speeds (forward, strafe, turn, and
   vertical) at once so the ROV keeps doing exactly what it's doing, hands-free.
   Push the sticks to the speeds you want, **squeeze the left trigger to lock
   them in, then let go of the sticks** — cruise keeps holding. Squeeze the left
@@ -177,25 +180,27 @@ changes. Then adjust the matching `ControllerProfile` to match what you see.
 stick_forward = read_axis(profile.axis_forward, profile.invert_forward)
 stick_turn = read_axis(profile.axis_turn, profile.invert_turn)
 stick_vertical = read_axis(profile.axis_vertical, profile.invert_vertical)
+stick_strafe = read_axis(profile.axis_strafe, profile.invert_strafe)
 gripper = read_gripper(joystick, profile)   # 0.0 = not squeezing .. 1.0 = grip
 
 # cruise control: the left trigger toggles it. While on, cruise_locked holds
-# all three speeds; moving any stick cancels it. While off, use the sticks.
+# all four speeds; moving any stick cancels it. While off, use the sticks.
 if cruise_locked is not None:
-    forward, turn, vertical = cruise_locked
+    forward, strafe, turn, vertical = cruise_locked
 else:
-    forward, turn, vertical = stick_forward, stick_turn, stick_vertical
+    forward, strafe, turn, vertical = (stick_forward, stick_strafe,
+                                       stick_turn, stick_vertical)
 # the release button opens the gripper; otherwise the grip holds on its own
 gripper_release = pressed_edge(joystick, profile.release_button, buttons)
 
-message = f"{forward},{turn},{vertical},{gripper},{int(gripper_release)}"
+message = f"{forward},{strafe},{turn},{vertical},{gripper},{int(gripper_release)}"
 sock.sendto(message.encode("utf-8"), target)
 
 time.sleep(interval)
 ```
 
 Every iteration: read the controls through the active profile, build the
-`"forward,turn,vertical,gripper,gripper_release"` string `rov_server.py` expects, and send
+`"forward,strafe,turn,vertical,gripper,gripper_release"` string `rov_server.py` expects, and send
 it — at a steady 20 times a second (`SEND_RATE_HZ`), **whether or not
 anything changed**. Sending continuously (instead of only when the sticks
 move) is what makes the Pi's failsafe meaningful: as long as `pilot.py` is

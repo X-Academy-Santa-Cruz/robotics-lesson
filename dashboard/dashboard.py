@@ -133,11 +133,12 @@ PAGE = """<!doctype html>
     <h2>Controls (Logitech F310 gamepad)</h2>
     <div style="display:flex;flex-direction:column;gap:16px">
       <div class="stat">
-        <div class="label">Driving</div>
+        <div class="label">Driving (6 thrusters, vectored)</div>
         <div class="help">
-          <b>Left stick — up/down:</b> vertical thruster (push up = surface, down = dive).<br>
-          <b>Right stick — up/down:</b> forward / reverse (both horizontal thrusters together).<br>
-          <b>Right stick — left/right:</b> turn (the left and right thrusters drive opposite ways).
+          <b>Left stick — up/down:</b> vertical (push up = surface, down = dive; both vertical thrusters together).<br>
+          <b>Left stick — left/right:</b> strafe (slide sideways without turning).<br>
+          <b>Right stick — up/down:</b> forward / reverse.<br>
+          <b>Right stick — left/right:</b> turn (rotate in place). The four angled corner thrusters mix these three motions.
         </div>
       </div>
       <div class="stat">
@@ -152,10 +153,10 @@ PAGE = """<!doctype html>
       <div class="stat">
         <div class="label">Cruise control</div>
         <div class="help">
-          <b>Left trigger (LT):</b> squeeze once to lock all three thruster speeds
-          (forward, turn, vertical) so the ROV holds course hands-free; squeeze
-          again to turn cruise off. <b>Moving any stick</b> also cancels cruise
-          and returns to manual control.
+          <b>Left trigger (LT):</b> squeeze once to lock all four thruster speeds
+          (forward, strafe, turn, vertical) so the ROV holds course hands-free;
+          squeeze again to turn cruise off. <b>Moving any stick</b> also cancels
+          cruise and returns to manual control.
         </div>
       </div>
     </div>
@@ -186,7 +187,7 @@ PAGE = """<!doctype html>
       <div class="stat"><div class="label">Armed</div>
         <div class="value" id="armed">--</div>
         <div class="hint">Thrusters have seen neutral and will accept throttle. Not armed = they ignore commands (a safety step at startup).</div></div>
-      <div class="stat"><div class="label">Vertical thruster</div>
+      <div class="stat"><div class="label">Vertical thrusters</div>
         <div class="value" id="vert">--</div></div>
       <div class="stat" style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center">
         <div class="label" style="align-self:flex-start">Heading dial</div>
@@ -210,7 +211,8 @@ PAGE = """<!doctype html>
 </div>
 
 <script>
-const names = ["left", "right", "vertical"];
+const names = ["left_front", "right_front", "left_rear", "right_rear",
+               "vertical_left", "vertical_right"];
 let lastTime = null, staleTicks = 0;
 
 // Point the <img> at the camera stream. Build the URL FROM THE HOSTNAME THE
@@ -266,25 +268,37 @@ function render(t) {
   }).join("");
   document.getElementById("channels").innerHTML = rows;
 
-  // dial: left/right throttles make a heading angle; forward leans the arrow up
-  const fwd = ((ch.left?.throttle || 0) + (ch.right?.throttle || 0)) / 2;   // -1..1
-  const turn = ((ch.left?.throttle || 0) - (ch.right?.throttle || 0)) / 2;  // -1..1
-  // Arrow angle: straight up = forward; turn rotates it; magnitude = speed.
-  const angle = Math.atan2(turn, Math.max(fwd, 0.001));  // radians from +fwd axis
-  const speed = Math.min(1, Math.hypot(fwd, turn));
+  // dial: recover the pilot's motion from the four horizontal thrusters.
+  // Vectored mixing was:
+  //   left_front  = forward + strafe + turn      right_front = forward - strafe - turn
+  //   left_rear   = forward - strafe + turn      right_rear  = forward + strafe - turn
+  // so, inverting:  forward = avg of all four,  turn = (fronts? ) ...
+  const lf = ch.left_front?.throttle || 0, rf = ch.right_front?.throttle || 0;
+  const lr = ch.left_rear?.throttle  || 0, rr = ch.right_rear?.throttle  || 0;
+  const fwd    = (lf + rf + lr + rr) / 4;          // -1..1
+  const strafe = (lf - rf - lr + rr) / 4;          // -1..1 (slide right positive)
+  const turn   = (lf - rf + lr - rr) / 4;          // -1..1 (rotate right positive)
+  // Arrow: forward leans it up, strafe leans it sideways, turn rotates it.
+  const vx = strafe + turn;   // screen +x (right)
+  const vy = fwd;             // screen up = forward
+  const speed = Math.min(1, Math.hypot(vx, vy));
   const len = 20 + speed * 60;
   const cx = 110, cy = 110;
-  // screen: up is -y. forward (fwd>0) -> up. turn>0 (right) -> +x.
-  const x2 = cx + Math.sin(angle) * len * (fwd < 0 ? -1 : 1);
-  const y2 = cy - Math.cos(angle) * len * (fwd < 0 ? -1 : 1);
+  const mag = Math.max(0.001, Math.hypot(vx, vy));
+  const x2 = cx + (vx / mag) * len;
+  const y2 = cy - (vy / mag) * len;        // up is -y on screen
   const arrow = document.getElementById("driveArrow");
   arrow.setAttribute("x2", x2.toFixed(1));
   arrow.setAttribute("y2", y2.toFixed(1));
   arrow.setAttribute("stroke", fwd < 0 ? "#f5a623" : "#6fd3cf");
 
-  const v = ch.vertical;
+  // Both verticals move together, so show their average.
+  const vl = ch.vertical_left, vr = ch.vertical_right;
+  const vpct = ((vl?.percent || 0) + (vr?.percent || 0)) / 2;
+  const vdir = (vl && vl.direction !== "stopped") ? vl.direction
+             : (vr ? vr.direction : "--");
   document.getElementById("vert").textContent =
-    v ? (v.direction + " " + v.percent.toFixed(0) + "%") : "--";
+    (vl || vr) ? (vdir + " " + vpct.toFixed(0) + "%") : "--";
 }
 
 setInterval(tick, 150);

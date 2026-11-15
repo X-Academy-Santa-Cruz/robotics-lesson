@@ -31,6 +31,30 @@ Key components to know:
 | 8 | **40-pin header / I2C pins** | The Servo HAT uses the I2C pins here to talk to the Pi. |
 | 9 | **Fan / power button** | The Pi 5 has a power button; a cooler/fan connector sits near the USB-C port. |
 
+### Powering the Pi on the ROV (through the GPIO pins)
+
+On the bench you power the Pi from the USB-C port. On the finished ROV there's no
+USB-C charger down there — the Pi is powered from your battery/regulator through
+the **5V and GND pins on the 40-pin GPIO header** instead. This is a normal,
+supported way to power a Pi, but it is also easy to get wrong: there is **no
+fuse, no polarity protection, and no under-voltage cutoff** on those pins, so a
+reversed wire or a sloppy supply can kill the Pi instantly.
+
+Watch this short walkthrough before you wire it:
+[Powering the Raspberry Pi through the GPIO pins](https://www.youtube.com/watch?v=PddIeZP-wgw).
+
+Then follow these rules on your build:
+
+- Feed a **clean, regulated 5 V** into a **5V pin** (physical pin 2 or 4) and a
+  **GND pin** (physical pin 6), from a regulator rated for at least the Pi 5's
+  draw (a solid **5 A at 5 V**). The thrusters run off their **own** battery/ESC
+  power — never off the Pi's 5 V.
+- **Double-check polarity before powering on.** 5 V and GND reversed will
+  destroy the Pi. Label the wires and check with a multimeter.
+- The SparkFun Servo HAT sits on this same header, so make sure your power wiring
+  and the HAT don't fight over the same pins — see the thrusters lesson for the
+  HAT's pin use.
+
 ## 2. Putting Ubuntu on the SD card
 
 The Pi boots from a microSD card, and the card has to have an operating system

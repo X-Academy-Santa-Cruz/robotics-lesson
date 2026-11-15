@@ -9,8 +9,8 @@ Reuses the ThrusterRig built in the thrusters lesson instead of rewriting
 thruster control from scratch.
 
 Control packet in (comma-separated), from pilot.py:
-    forward,turn,vertical,gripper[,gripper_release][,cruise_on]
-  forward/turn/vertical : -1.0 .. +1.0 thruster commands
+    forward,strafe,turn,vertical,gripper[,gripper_release][,cruise_on]
+  forward/strafe/turn/vertical : -1.0 .. +1.0 thruster commands
   gripper               : 0.0 (not squeezing) .. 1.0 (trigger squeezed = grip)
   gripper_release       : 1 = open the gripper to let go; 0 = normal.
   cruise_on             : 1 = pilot is holding speed with cruise; 0 = manual.
@@ -40,13 +40,13 @@ TEMP_PERIOD = 1.0        # read the (slow) I2C temperature sensor this often
 
 
 def parse_packet(data: bytes):
-    # forward,turn,vertical,gripper[,gripper_release][,cruise_on]
+    # forward,strafe,turn,vertical,gripper[,gripper_release][,cruise_on]
     parts = [float(v) for v in data.decode("utf-8").split(",")]
-    forward, turn, vertical = parts[0], parts[1], parts[2]
-    gripper = parts[3] if len(parts) > 3 else 0.0
-    gripper_release = bool(parts[4]) if len(parts) > 4 else False
-    cruise_on = bool(parts[5]) if len(parts) > 5 else False
-    return forward, turn, vertical, gripper, gripper_release, cruise_on
+    forward, strafe, turn, vertical = parts[0], parts[1], parts[2], parts[3]
+    gripper = parts[4] if len(parts) > 4 else 0.0
+    gripper_release = bool(parts[5]) if len(parts) > 5 else False
+    cruise_on = bool(parts[6]) if len(parts) > 6 else False
+    return forward, strafe, turn, vertical, gripper, gripper_release, cruise_on
 
 
 class TemperatureReader:
@@ -128,10 +128,11 @@ def main(port, address, telemetry_host, telemetry_port, bus):
                 send_telemetry()
                 continue
             try:
-                forward, turn, vertical, gripper, release, cruise_on = parse_packet(data)
+                (forward, strafe, turn, vertical,
+                 gripper, release, cruise_on) = parse_packet(data)
             except (ValueError, IndexError):
                 continue  # ignore a malformed packet, just wait for the next one
-            rig.drive(forward, turn, vertical)
+            rig.drive(forward, strafe, turn, vertical)
             # The gripper grips when the trigger is squeezed and HOLDS that grip
             # when the trigger is released; the release flag opens it to let go.
             if release:

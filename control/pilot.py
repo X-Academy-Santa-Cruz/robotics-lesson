@@ -1,19 +1,24 @@
 """
-Runs on the laptop. Reads a game controller and sends forward/turn/vertical,
-gripper, and gripper-release commands to rov_server.py on the Pi over UDP,
-continuously, at a fixed rate.
+Runs on the laptop. Reads a game controller and sends
+forward/strafe/turn/vertical, gripper, and gripper-release commands to
+rov_server.py on the Pi over UDP, continuously, at a fixed rate.
+
+This drives the six-thruster (vectored) ROV: the four angled corner thrusters
+can move the ROV forward, sideways (strafe), and rotate (turn) at once, and the
+two vertical thrusters handle depth.
 
 Control layout (dual-stick gamepad, e.g. the F310):
     LEFT stick  (up/down)  -> vertical  (dive / surface)
+    LEFT stick  (left/right)-> strafe   (slide sideways, no rotation)
     RIGHT stick (up/down)  -> forward / reverse
-    RIGHT stick (left/right)-> turn
+    RIGHT stick (left/right)-> turn     (rotate in place)
     TRIGGER                -> squeeze to GRIP. The gripper KEEPS holding when
                               you let go of the trigger, so you can carry an
                               object hands-free.
     RELEASE button         -> open the gripper to let the object go
                               (F310: A button; Extreme 3D: button 2)
-    LEFT TRIGGER (cruise)  -> squeeze once to TOGGLE cruise ON: lock all three
-                              thruster speeds (forward, turn, vertical)
+    LEFT TRIGGER (cruise)  -> squeeze once to TOGGLE cruise ON: lock all four
+                              thruster speeds (forward, strafe, turn, vertical)
                               hands-free. Squeeze again to toggle cruise OFF.
                               Moving ANY stick also cancels cruise.
 
@@ -26,8 +31,9 @@ see the profiles below and use --calibrate to confirm on yours):
         button toggles it instead).
 
 On the Logitech Extreme 3D Pro flight stick there is only one stick plus a
-throttle slider, so that single stick drives forward/turn and the throttle
-slider drives vertical (there is no separate "left stick" to use for depth).
+throttle slider: the stick's pitch drives forward, its twist drives turn, its
+roll (left/right tilt) drives strafe, and the throttle slider drives vertical
+(there is no separate "left stick" to use for depth).
 
 If your controller isn't recognized, or the axes come out wrong, run with
 --calibrate and move each control to find the right numbers, then adjust the
@@ -60,8 +66,9 @@ class ControllerProfile:
     present on this pad.)
     """
 
-    def __init__(self, name, axis_forward, axis_turn, axis_vertical,
+    def __init__(self, name, axis_forward, axis_turn, axis_vertical, axis_strafe,
                  invert_forward=True, invert_turn=False, invert_vertical=True,
+                 invert_strafe=False,
                  gripper_button=None, gripper_axis=None, gripper_axis_rest=-1.0,
                  release_button=None, cruise_button=None,
                  cruise_axis=None, cruise_axis_rest=-1.0):
@@ -69,9 +76,11 @@ class ControllerProfile:
         self.axis_forward = axis_forward
         self.axis_turn = axis_turn
         self.axis_vertical = axis_vertical
+        self.axis_strafe = axis_strafe
         self.invert_forward = invert_forward
         self.invert_turn = invert_turn
         self.invert_vertical = invert_vertical
+        self.invert_strafe = invert_strafe
         self.gripper_button = gripper_button
         self.gripper_axis = gripper_axis
         self.gripper_axis_rest = gripper_axis_rest
@@ -81,14 +90,16 @@ class ControllerProfile:
         self.cruise_axis_rest = cruise_axis_rest
 
 
-# Logitech Extreme 3D Pro: pitch (axis 1), twist/yaw (axis 2), throttle
-# slider (axis 3). The trigger is button 0. The single stick drives
-# forward/turn; the throttle slider drives vertical. The trigger (button 0)
-# grips; button 2 opens the gripper to release; button 3 toggles cruise.
+# Logitech Extreme 3D Pro: roll (axis 0), pitch (axis 1), twist/yaw (axis 2),
+# throttle slider (axis 3). The trigger is button 0. The single stick drives
+# forward (pitch), turn (twist) and strafe (roll); the throttle slider drives
+# vertical. The trigger (button 0) grips; button 2 opens the gripper to
+# release; button 3 toggles cruise.
 PROFILE_EXTREME_3D = ControllerProfile(
     name="Logitech Extreme 3D Pro",
-    axis_forward=1, axis_turn=2, axis_vertical=3,
+    axis_forward=1, axis_turn=2, axis_vertical=3, axis_strafe=0,
     invert_forward=True, invert_turn=False, invert_vertical=True,
+    invert_strafe=False,
     gripper_button=0, release_button=2, cruise_button=3,
 )
 
@@ -97,24 +108,26 @@ PROFILE_EXTREME_3D = ControllerProfile(
 #   right stick X/Y = axes 3 / 4
 #   left  trigger (LT) = analog axis 2, resting at -1.0, +1.0 fully squeezed
 #   right trigger (RT) = analog axis 5, resting at -1.0, +1.0 fully squeezed
-# Control layout: LEFT stick Y -> vertical, RIGHT stick Y -> forward,
-# RIGHT stick X -> turn. The right trigger (RT) grips; the A button (0) opens
-# the gripper to release. The LEFT trigger (LT) TOGGLES cruise control on/off
-# (locking all three thruster speeds); moving any stick also cancels it.
+# Control layout: LEFT stick Y -> vertical, LEFT stick X -> strafe,
+# RIGHT stick Y -> forward, RIGHT stick X -> turn. The right trigger (RT) grips;
+# the A button (0) opens the gripper to release. The LEFT trigger (LT) TOGGLES
+# cruise control on/off (locking all four thruster speeds); moving any stick
+# also cancels it.
 PROFILE_F310 = ControllerProfile(
     name="Logitech Gamepad F310",
-    axis_forward=4, axis_turn=3, axis_vertical=1,
+    axis_forward=4, axis_turn=3, axis_vertical=1, axis_strafe=0,
     invert_forward=True, invert_turn=False, invert_vertical=True,
+    invert_strafe=False,
     gripper_axis=5, gripper_axis_rest=-1.0,
     release_button=0, cruise_axis=2, cruise_axis_rest=-1.0,
 )
 
 # A safe fallback used when the controller name isn't recognized. Assumes a
-# dual-stick layout: left stick Y (axis 1) = vertical, right stick Y (axis 4)
-# = forward, right stick X (axis 3) = turn.
+# dual-stick layout: left stick Y (axis 1) = vertical, left stick X (axis 0)
+# = strafe, right stick Y (axis 4) = forward, right stick X (axis 3) = turn.
 PROFILE_DEFAULT = ControllerProfile(
     name="Generic",
-    axis_forward=4, axis_turn=3, axis_vertical=1,
+    axis_forward=4, axis_turn=3, axis_vertical=1, axis_strafe=0,
     gripper_button=0, release_button=1,
     cruise_axis=2, cruise_axis_rest=-1.0,
 )
@@ -209,9 +222,10 @@ def main(pi_address, port, do_calibrate):
 
     profile = pick_profile(name)
     click.echo(f"Matched profile: {profile.name}")
-    click.echo("Left stick = vertical, right stick = forward/turn. "
+    click.echo("Left stick = vertical (up/down) + strafe (left/right); "
+               "right stick = forward (up/down) + turn (left/right). "
                "Right trigger grips (it holds); release button opens it. "
-               "Left trigger toggles cruise (locks all 3 speeds); move a stick to cancel.")
+               "Left trigger toggles cruise (locks all 4 speeds); move a stick to cancel.")
 
     def read_axis(index, invert):
         if index >= joystick.get_numaxes():
@@ -224,7 +238,7 @@ def main(pi_address, port, do_calibrate):
     interval = 1.0 / SEND_RATE_HZ
 
     buttons = {}            # last-seen state per button/trigger, for edge detection
-    cruise_locked = None    # (forward, turn, vertical) being held, or None when off
+    cruise_locked = None    # (forward, strafe, turn, vertical) held, or None when off
     cruise_cancel_armed = False  # True once sticks are centered, so a push cancels
 
     try:
@@ -234,6 +248,7 @@ def main(pi_address, port, do_calibrate):
             stick_forward = read_axis(profile.axis_forward, profile.invert_forward)
             stick_turn = read_axis(profile.axis_turn, profile.invert_turn)
             stick_vertical = read_axis(profile.axis_vertical, profile.invert_vertical)
+            stick_strafe = read_axis(profile.axis_strafe, profile.invert_strafe)
             gripper = read_gripper(joystick, profile)  # squeeze trigger = grip
             cruise_trigger = read_trigger(joystick, profile.cruise_axis,
                                           profile.cruise_axis_rest)
@@ -259,21 +274,22 @@ def main(pi_address, port, do_calibrate):
             else:
                 cruise_toggle = pressed_edge(joystick, profile.cruise_button, buttons)
 
-            sticks_at_neutral = max(abs(stick_forward), abs(stick_turn),
-                                    abs(stick_vertical)) < CRUISE_NEUTRAL
-            sticks_pushed = max(abs(stick_forward), abs(stick_turn),
-                                abs(stick_vertical)) > CRUISE_CANCEL_PUSH
+            stick_max = max(abs(stick_forward), abs(stick_turn),
+                            abs(stick_vertical), abs(stick_strafe))
+            sticks_at_neutral = stick_max < CRUISE_NEUTRAL
+            sticks_pushed = stick_max > CRUISE_CANCEL_PUSH
 
             if cruise_locked is None:
                 if cruise_toggle:
-                    cruise_locked = (stick_forward, stick_turn, stick_vertical)
+                    cruise_locked = (stick_forward, stick_strafe,
+                                     stick_turn, stick_vertical)
                     # Don't let the sticks returning to center from THIS engage
                     # position count as a cancel: arm the manual-override cancel
                     # only once the sticks have gone back to neutral.
                     cruise_cancel_armed = sticks_at_neutral
                     click.echo(
-                        "Cruise ON - locked forward={:+.2f} turn={:+.2f} "
-                        "vertical={:+.2f}".format(*cruise_locked)
+                        "Cruise ON - locked forward={:+.2f} strafe={:+.2f} "
+                        "turn={:+.2f} vertical={:+.2f}".format(*cruise_locked)
                     )
             else:
                 if sticks_at_neutral:
@@ -287,17 +303,18 @@ def main(pi_address, port, do_calibrate):
 
             cruise_on = cruise_locked is not None
             if cruise_on:
-                forward, turn, vertical = cruise_locked
+                forward, strafe, turn, vertical = cruise_locked
             else:
-                forward, turn, vertical = stick_forward, stick_turn, stick_vertical
+                forward, strafe, turn, vertical = (stick_forward, stick_strafe,
+                                                   stick_turn, stick_vertical)
 
-            # 6th field: cruise_on, so the server (and the dashboard) can show it.
-            message = (f"{forward},{turn},{vertical},{gripper},"
+            # Packet: forward,strafe,turn,vertical,gripper,release,cruise_on
+            message = (f"{forward},{strafe},{turn},{vertical},{gripper},"
                        f"{int(gripper_release)},{int(cruise_on)}")
             sock.sendto(message.encode("utf-8"), target)
             time.sleep(interval)
     except KeyboardInterrupt:
-        sock.sendto(b"0,0,0,0,0,0", target)  # explicit stop on the way out
+        sock.sendto(b"0,0,0,0,0,0,0", target)  # explicit stop on the way out
     finally:
         sock.close()
 

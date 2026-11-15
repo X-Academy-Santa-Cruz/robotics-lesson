@@ -1,10 +1,30 @@
 # Lesson 2: Thruster Control
 
-Your ROV moves using three brushless thrusters (BlueRobotics-style, e.g.
-T100/T200): one on the **left**, one on the **right**, and one **vertical**
-thruster for rising and sinking. This lesson covers how the Pi commands
-them, and introduces a piece of hardware you haven't used yet: the
-**SparkFun Pi Servo Hat**, which plugs directly onto the Pi's 40-pin header.
+Your ROV moves using **six** brushless thrusters (BlueRobotics-style, e.g.
+T100/T200) in the common **vectored** layout:
+
+- **Four horizontal thrusters**, one at each corner, angled about 45°:
+  `left_front`, `right_front`, `left_rear`, `right_rear`. Because they're
+  angled, mixing them lets the ROV go forward/back, **slide sideways (strafe)**,
+  and **rotate (turn)** — all at once.
+- **Two vertical thrusters**, `vertical_left` and `vertical_right`, that move
+  together to rise and sink.
+
+They plug into a SparkFun Pi Servo HAT on these channels:
+
+| Channel | Thruster |
+|---|---|
+| 0 | gripper servo |
+| 1 | left_rear |
+| 2 | vertical_left |
+| 3 | left_front |
+| 4 | right_front |
+| 5 | vertical_right |
+| 6 | right_rear |
+
+This lesson covers how the Pi commands them, and introduces a piece of hardware
+you haven't used yet: the **SparkFun Pi Servo Hat**, which plugs directly onto
+the Pi's 40-pin header.
 
 ## Safety first — read this before touching any hardware
 
@@ -201,9 +221,8 @@ pulse-width math we need.
 
 ```python
 def arm(self):
-    self._set_throttle(CHANNEL_LEFT, 0.0)
-    self._set_throttle(CHANNEL_RIGHT, 0.0)
-    self._set_throttle(CHANNEL_VERTICAL, 0.0)
+    for ch in ALL_THRUSTER_CHANNELS:
+        self._set_throttle(ch, 0.0)
     time.sleep(ARM_SECONDS)
     self._armed = True
 ```
@@ -215,24 +234,43 @@ to full speed the instant power is connected. `arm()` does exactly that
 before `arm()` has been called (see `_check_armed`), so the code itself
 enforces arming before any throttle command.
 
-### Differential steering
+### Vectored mixing
+
+Because the four horizontal thrusters are angled at the corners, we can combine
+three motions — **forward**, **strafe** (sideways), and **turn** (rotate) — by
+adding and subtracting them on each corner thruster. The two verticals just move
+together for depth:
 
 ```python
-def drive(self, forward, turn, vertical):
-    self._set_throttle(CHANNEL_LEFT, self._clamp(forward + turn))
-    self._set_throttle(CHANNEL_RIGHT, self._clamp(forward - turn))
-    self._set_throttle(CHANNEL_VERTICAL, self._clamp(vertical))
+def drive(self, forward, strafe, turn, vertical):
+    self._set_throttle(CHANNEL_LEFT_FRONT,  forward + strafe + turn)
+    self._set_throttle(CHANNEL_RIGHT_FRONT, forward - strafe - turn)
+    self._set_throttle(CHANNEL_LEFT_REAR,   forward - strafe + turn)
+    self._set_throttle(CHANNEL_RIGHT_REAR,  forward + strafe - turn)
+    self._set_throttle(CHANNEL_VERTICAL_LEFT,  vertical)
+    self._set_throttle(CHANNEL_VERTICAL_RIGHT, vertical)
 ```
 
-Three simple axes become three thruster commands:
+Four motion axes become six thruster commands. Look at which signs line up:
 
-- **forward** alone: both thrusters get the same value — straight line
-- **turn** alone: left and right get opposite adjustments — the ROV spins
-  in place
-- **forward + turn** together: one side speeds up, the other slows down —
-  the ROV curves
-- **vertical**: independent of the other two, controls only the vertical
-  thruster
+- **forward** alone: all four corners get `+forward` — the ROV drives straight.
+- **strafe** alone: `left_front` and `right_rear` push one way, `right_front`
+  and `left_rear` the other — the angled thrusters add up to a pure **sideways
+  slide**, no rotation.
+- **turn** alone: the left pair goes one way and the right pair the other — the
+  ROV **rotates in place**.
+- **vertical**: both vertical thrusters together — dive or surface, independent
+  of everything else.
+
+The real power of a vectored layout is that these combine: `forward` + `strafe`
+drives diagonally, `forward` + `turn` curves, and so on.
+
+> **Signs depend on your build.** The `+`/`−` pattern above assumes a standard
+> BlueROV2-style layout and ESC/propeller wiring. On your ROV a motor may spin
+> the "wrong" way for the math. Test each axis **one at a time** (the demo does
+> this) and fix a wrong one by **flipping that propeller or swapping two ESC
+> motor wires** — don't change the mixing math, or you'll break the other
+> motions.
 
 ### Shutting down safely
 
@@ -263,13 +301,15 @@ You should see:
 Arming thrusters - keep clear of propellers...
 Armed.
 forward, half speed
+strafe right, half speed
 turn right in place
-rise
+rise (both verticals)
 stop
 ```
 
-Each thruster should visibly respond during its step, and come to a full
-stop at the end. If a thruster spins the wrong direction, see below.
+Each step exercises **one motion axis**, so you can watch exactly which thrusters
+respond and confirm they'd move the ROV the right way. Each thruster should come
+to a full stop at the end. If a thruster spins the wrong direction, see below.
 
 ### Running it in PyCharm
 
@@ -300,18 +340,21 @@ either way.)
 
 ## Exercises
 
-1. Run the demo sequence with propellers off and confirm each thruster
-   responds in the expected direction for forward, turn, and vertical.
-2. If a thruster spins the "wrong" way for your wiring, fix it in code by
-   negating that axis for that thruster, rather than re-wiring it.
-3. `drive()` clamps `forward + turn` independently per side, so
-   `forward=1.0, turn=1.0` asks for `left=2.0` and silently clips to `1.0`.
-   Write a version that instead *scales down* both sides proportionally
-   when either would exceed 1.0, so turning at full forward speed still
-   turns instead of just going straight.
-4. Write your own short sequence (a list of `(label, axes)` steps like
-   `demo()`) that moves in a square-ish pattern: forward, turn, forward,
-   turn, stop.
+1. Run the demo sequence with propellers off and confirm each thruster responds
+   on the right axis: forward (all four horizontals), strafe, turn, and vertical
+   (both verticals).
+2. If a thruster spins the "wrong" way for your wiring, fix it by flipping that
+   propeller or swapping two of that ESC's motor wires — **not** by changing the
+   mixing math, which would break the other motions.
+3. `drive()` clamps each corner thruster independently, so
+   `forward=1.0, strafe=1.0, turn=1.0` asks for `left_front = 3.0` and silently
+   clips to `1.0` — at the limit, some motions get starved. Write a version that
+   instead *scales all four horizontals down proportionally* when any of them
+   would exceed 1.0, so a hard turn while driving forward still turns.
+4. Write your own short sequence (a list of `(label, axes)` steps like `demo()`)
+   that moves in a square using **strafe** instead of turning: forward, strafe
+   right, back, strafe left, stop — the ROV traces a square while always facing
+   the same way.
 
 ## Reference: the Python module used here
 

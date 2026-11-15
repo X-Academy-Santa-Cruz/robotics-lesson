@@ -1,7 +1,22 @@
 """
-Drives three BlueRobotics-style brushless thrusters (left, right, vertical)
-and a gripper servo through a SparkFun Pi Servo HAT (PCA9685-based) plugged
-onto the Pi's GPIO header, using the SparkFun pi_servo_hat library.
+Drives six BlueRobotics-style brushless thrusters and a gripper servo through a
+SparkFun Pi Servo HAT (PCA9685-based) plugged onto the Pi's GPIO header, using
+the SparkFun pi_servo_hat library.
+
+The six thrusters are arranged in the common "vectored" layout:
+
+    four HORIZONTAL thrusters, one at each corner, angled ~45 degrees:
+        left_front   right_front
+              \\       /
+               [ROV]
+              /       \\
+        left_rear    right_rear
+
+    two VERTICAL thrusters (left and right) that move the ROV up and down.
+
+Because the four horizontal thrusters are angled, mixing them lets the ROV move
+forward/back, slide sideways (strafe), and rotate (turn/yaw) all at once. The
+two verticals move together for depth.
 
 Run this with the thrusters either out of the water with propellers removed,
 or fully submerged and clear of anyone's hands - never run them in air with
@@ -29,15 +44,42 @@ SWING = 180
 
 # Which Servo HAT channel each device is plugged into.
 CHANNEL_GRIPPER = 0
-CHANNEL_LEFT = 1
-CHANNEL_RIGHT = 2
-CHANNEL_VERTICAL = 3
+CHANNEL_LEFT_REAR = 1
+CHANNEL_VERTICAL_LEFT = 2
+CHANNEL_LEFT_FRONT = 3
+CHANNEL_RIGHT_FRONT = 4
+CHANNEL_VERTICAL_RIGHT = 5
+CHANNEL_RIGHT_REAR = 6
 
-# Friendly names for the thruster channels, used by the test CLI.
+# Friendly names for the thruster channels, used by the test CLI and telemetry.
+# Order here is the order they appear on the dashboard.
 THRUSTER_CHANNELS = {
-    "left": CHANNEL_LEFT,
-    "right": CHANNEL_RIGHT,
-    "vertical": CHANNEL_VERTICAL,
+    "left_front": CHANNEL_LEFT_FRONT,
+    "right_front": CHANNEL_RIGHT_FRONT,
+    "left_rear": CHANNEL_LEFT_REAR,
+    "right_rear": CHANNEL_RIGHT_REAR,
+    "vertical_left": CHANNEL_VERTICAL_LEFT,
+    "vertical_right": CHANNEL_VERTICAL_RIGHT,
+}
+
+# The four horizontal thrusters, in corner order.
+HORIZONTAL_CHANNELS = (
+    CHANNEL_LEFT_FRONT, CHANNEL_RIGHT_FRONT,
+    CHANNEL_LEFT_REAR, CHANNEL_RIGHT_REAR,
+)
+# The two vertical thrusters.
+VERTICAL_CHANNELS = (CHANNEL_VERTICAL_LEFT, CHANNEL_VERTICAL_RIGHT)
+# Every thruster channel (not the gripper).
+ALL_THRUSTER_CHANNELS = HORIZONTAL_CHANNELS + VERTICAL_CHANNELS
+
+# Direction a thruster drives, for the dashboard's direction word.
+CHANNEL_AXIS = {
+    CHANNEL_LEFT_FRONT: "horizontal",
+    CHANNEL_RIGHT_FRONT: "horizontal",
+    CHANNEL_LEFT_REAR: "horizontal",
+    CHANNEL_RIGHT_REAR: "horizontal",
+    CHANNEL_VERTICAL_LEFT: "vertical",
+    CHANNEL_VERTICAL_RIGHT: "vertical",
 }
 
 # Gripper servo travel (degrees). A standard positional servo, not an ESC:
@@ -69,7 +111,7 @@ def _pulse_ms_to_position(ms: float) -> float:
 
 
 class ThrusterRig:
-    """Controls the three thrusters plus the gripper as a single unit."""
+    """Controls the six thrusters plus the gripper as a single unit."""
 
     def __init__(self, i2c_address: int = 0x40, frequency: int = 50):
         # Create the HAT. The default I2C address of the Pi Servo HAT is 0x40.
@@ -84,11 +126,10 @@ class ThrusterRig:
         self._gripper_amount = 0.0
         # Last throttle commanded on each thruster channel (-1..+1), so the
         # dashboard can report per-channel PWM, power %, and direction.
-        self._throttles = {
-            CHANNEL_LEFT: 0.0, CHANNEL_RIGHT: 0.0, CHANNEL_VERTICAL: 0.0,
-        }
+        self._throttles = {ch: 0.0 for ch in ALL_THRUSTER_CHANNELS}
 
     def _set_throttle(self, channel: int, throttle: float):
+        throttle = self._clamp(throttle)
         self._throttles[channel] = throttle
         self._hat.move_servo_position(channel, _throttle_to_position(throttle), SWING)
 
@@ -100,9 +141,8 @@ class ThrusterRig:
         an arbitrary speed the instant the ESC powers on.
         """
         print("Arming thrusters - keep clear of propellers...")
-        self._set_throttle(CHANNEL_LEFT, 0.0)
-        self._set_throttle(CHANNEL_RIGHT, 0.0)
-        self._set_throttle(CHANNEL_VERTICAL, 0.0)
+        for ch in ALL_THRUSTER_CHANNELS:
+            self._set_throttle(ch, 0.0)
         self.set_gripper(0.0)                      # start with the gripper open
         time.sleep(ARM_SECONDS)
         self._armed = True
@@ -116,18 +156,40 @@ class ThrusterRig:
     def _clamp(value: float) -> float:
         return max(-1.0, min(1.0, value))
 
-    def drive(self, forward: float, turn: float, vertical: float):
-        """Set all three thrusters from three simple axes, each -1.0 to 1.0.
+    def drive(self, forward: float, strafe: float, turn: float, vertical: float):
+        """Set all six thrusters from four motion axes, each -1.0 to 1.0.
 
         forward:  reverse <-> forward
-        turn:     left <-> right, applied as opposite speed changes to the
-                  left/right thrusters (differential steering)
-        vertical: down <-> up
+        strafe:   slide left <-> slide right (sideways, no rotation)
+        turn:     rotate left (CCW) <-> rotate right (CW), i.e. yaw
+        vertical: dive <-> surface (both vertical thrusters together)
+
+        VECTORED MIXING for the four 45-degree corner thrusters. Each horizontal
+        thruster is a sum of the three horizontal axes; the signs are what make
+        the corners cooperate for each motion:
+
+            left_front  = forward + strafe + turn
+            right_front = forward - strafe - turn
+            left_rear   = forward - strafe + turn
+            right_rear  = forward + strafe - turn
+
+        Both verticals get the same vertical command (depth only).
+
+        NOTE: the signs above assume a standard BlueROV2-style layout and
+        propeller/ESC wiring. On your own ROV a motor may spin the "wrong" way;
+        test each axis one at a time (see the lesson) and flip a propeller or
+        swap two ESC wires - do NOT change the math here - until every axis
+        behaves.
         """
         self._check_armed()
-        self._set_throttle(CHANNEL_LEFT, self._clamp(forward + turn))
-        self._set_throttle(CHANNEL_RIGHT, self._clamp(forward - turn))
-        self._set_throttle(CHANNEL_VERTICAL, self._clamp(vertical))
+        f, s, t, v = (self._clamp(forward), self._clamp(strafe),
+                      self._clamp(turn), self._clamp(vertical))
+        self._set_throttle(CHANNEL_LEFT_FRONT,  f + s + t)
+        self._set_throttle(CHANNEL_RIGHT_FRONT, f - s - t)
+        self._set_throttle(CHANNEL_LEFT_REAR,   f - s + t)
+        self._set_throttle(CHANNEL_RIGHT_REAR,  f + s - t)
+        self._set_throttle(CHANNEL_VERTICAL_LEFT,  v)
+        self._set_throttle(CHANNEL_VERTICAL_RIGHT, v)
 
     # -- Per-channel helpers, used by the test CLI --------------------------
 
@@ -188,9 +250,8 @@ class ThrusterRig:
 
     def stop(self):
         self._check_armed()
-        self._set_throttle(CHANNEL_LEFT, 0.0)
-        self._set_throttle(CHANNEL_RIGHT, 0.0)
-        self._set_throttle(CHANNEL_VERTICAL, 0.0)
+        for ch in ALL_THRUSTER_CHANNELS:
+            self._set_throttle(ch, 0.0)
 
     def close(self):
         if self._armed:
@@ -207,20 +268,17 @@ class ThrusterRig:
         direction word. Plus the gripper's closed amount. (Temperature is added
         by the server, which owns the sensor.)
         """
-        names = {CHANNEL_LEFT: "left", CHANNEL_RIGHT: "right",
-                 CHANNEL_VERTICAL: "vertical"}
-        # Each thruster's direction word depends on which way it drives.
-        fwd_rev = {CHANNEL_LEFT: ("forward", "reverse"),
-                   CHANNEL_RIGHT: ("forward", "reverse"),
-                   CHANNEL_VERTICAL: ("up", "down")}
+        # Direction words per axis kind.
+        fwd_rev = {"horizontal": ("forward", "reverse"),
+                   "vertical": ("up", "down")}
         channels = {}
-        for ch, name in names.items():
+        for name, ch in THRUSTER_CHANNELS.items():
             thr = self._throttles[ch]
-            pos, neg = fwd_rev[ch]
+            pos, neg = fwd_rev[CHANNEL_AXIS[ch]]
             direction = "stopped" if abs(thr) < 0.02 else (pos if thr > 0 else neg)
             channels[name] = {
                 "channel": ch,
-                "throttle": round(thr, 3),            # -1..+1
+                "throttle": round(thr, 3),              # -1..+1
                 "percent": round(abs(thr) * 100.0, 1),  # 0..100
                 "direction": direction,
                 "pulse_ms": round(throttle_to_pulse_ms(thr), 3),
@@ -239,12 +297,17 @@ def throttle_to_pulse_ms(throttle: float) -> float:
 
 
 def demo(rig: ThrusterRig):
-    """A short, low-speed sequence to confirm everything is wired correctly."""
+    """A short, low-speed sequence to confirm everything is wired correctly.
+
+    Each step exercises ONE motion axis so you can watch which thrusters respond
+    and confirm the ROV would move the right way.
+    """
     steps = [
-        ("forward, half speed", lambda: rig.drive(0.5, 0.0, 0.0)),
-        ("turn right in place", lambda: rig.drive(0.0, 0.5, 0.0)),
-        ("rise", lambda: rig.drive(0.0, 0.0, 0.5)),
-        ("stop", lambda: rig.drive(0.0, 0.0, 0.0)),
+        ("forward, half speed", lambda: rig.drive(0.5, 0.0, 0.0, 0.0)),
+        ("strafe right, half speed", lambda: rig.drive(0.0, 0.5, 0.0, 0.0)),
+        ("turn right in place", lambda: rig.drive(0.0, 0.0, 0.5, 0.0)),
+        ("rise (both verticals)", lambda: rig.drive(0.0, 0.0, 0.0, 0.5)),
+        ("stop", lambda: rig.drive(0.0, 0.0, 0.0, 0.0)),
         ("close gripper", lambda: rig.set_gripper(1.0)),
         ("open gripper", lambda: rig.set_gripper(0.0)),
     ]
