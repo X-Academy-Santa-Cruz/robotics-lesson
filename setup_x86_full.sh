@@ -25,6 +25,10 @@
 #      NOTE: NDI does not publish "NDI Tools" (Studio Monitor, Test Patterns,
 #      etc.) for Linux, only for Windows and Mac. The SDK is the Linux
 #      equivalent. Installing it accepts the NDI SDK license for you.
+#  10. Sets up the desktop for the user who ran sudo:
+#        - installs the Ptyxis terminal (if this release has it) and loads the
+#          X Academy Ptyxis settings (16 pt font, 124x22 window, no bell)
+#        - pins the terminal, Google Chrome and PyCharm to the dock
 #
 # Requirements:
 #   - 64-bit x86 PC (amd64) running Ubuntu 24.04 or newer, or Debian 12 or newer
@@ -59,6 +63,23 @@ INFLUX_KEY_FINGERPRINT="24C975CBA61A024EE1B631787C3D57159FC2F927"
 NDI_SDK_NAME="Install_NDI_SDK_v6_Linux"
 NDI_SDK_URL="https://downloads.ndi.tv/SDK/NDI_SDK_Linux/${NDI_SDK_NAME}.tar.gz"
 NDI_DIR="/opt/ndi-sdk"
+
+# The desktop settings (dock, Ptyxis) belong to the person who ran sudo.
+DESKTOP_USER="${SUDO_USER:-}"
+
+# Ptyxis terminal settings, in 'dconf dump /org/gnome/Ptyxis/' format.
+read -r -d '' PTYXIS_SETTINGS <<'EOF_PTYXIS' || true
+[/]
+audible-bell=false
+default-profile-uuid='be7359be94cf20880518a5086afe6ec9'
+font-name='Monospace 16'
+profile-uuids=['be7359be94cf20880518a5086afe6ec9']
+use-system-font=false
+window-size=(uint32 124, uint32 22)
+
+[Profiles/be7359be94cf20880518a5086afe6ec9]
+preserve-directory='never'
+EOF_PTYXIS
 
 FORCE_PYCHARM="${FORCE_PYCHARM:-0}"
 FORCE_NDI="${FORCE_NDI:-0}"
@@ -354,6 +375,82 @@ install_ndi() {
 # Summary
 # ---------------------------------------------------------------------------
 
+# Run a command as the desktop user. If they are logged in, use their session
+# bus so the change shows up right away; otherwise start a private bus and the
+# setting is saved for their next login.
+as_desktop_user() {
+    local uid
+    uid="$(id -u "$DESKTOP_USER")"
+    if [[ -S "/run/user/$uid/bus" ]]; then
+        sudo -u "$DESKTOP_USER" -H env \
+            XDG_RUNTIME_DIR="/run/user/$uid" \
+            DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+            "$@"
+    else
+        sudo -u "$DESKTOP_USER" -H dbus-run-session -- "$@"
+    fi
+}
+
+setup_desktop() {
+    if [[ -z "$DESKTOP_USER" || "$DESKTOP_USER" == "root" ]]; then
+        echo "Run this script with sudo from your own account so the dock and terminal settings go to you." >&2
+        return 1
+    fi
+
+    # dconf-cli loads the Ptyxis settings; dbus-user-session gives
+    # dbus-run-session for when the user is not logged in.
+    apt-get -y install dconf-cli dbus-user-session
+
+    # Ptyxis is the default terminal on Ubuntu 25.10 and newer, and is in the
+    # archive from 24.10. On older releases, fall back to GNOME Terminal.
+    if ! dpkg -s ptyxis >/dev/null 2>&1 \
+       && apt-cache show ptyxis >/dev/null 2>&1; then
+        apt-get -y install ptyxis
+    fi
+
+    local terminal_app
+    if [[ -f /usr/share/applications/org.gnome.Ptyxis.desktop ]]; then
+        terminal_app="org.gnome.Ptyxis.desktop"
+        info "Loading the Ptyxis settings for $DESKTOP_USER ..."
+        as_desktop_user dconf load /org/gnome/Ptyxis/ <<< "$PTYXIS_SETTINGS"
+    else
+        terminal_app="org.gnome.Terminal.desktop"
+        warn "Ptyxis is not available on this release. Pinning GNOME Terminal instead and skipping the Ptyxis settings."
+    fi
+
+    # Pin to the GNOME dock (Ubuntu Dock / Dash). Apps already pinned stay where
+    # they are; ours are added on the end, without duplicates.
+    if ! as_desktop_user gsettings list-keys org.gnome.shell 2>/dev/null | grep -qx favorite-apps; then
+        echo "This is not a GNOME desktop, so there is no dock to pin apps to." >&2
+        return 1
+    fi
+
+    local want=() app
+    for app in "$terminal_app" google-chrome.desktop pycharm.desktop; do
+        if [[ -f "/usr/share/applications/$app" ]]; then
+            want+=("$app")
+        else
+            warn "$app is not installed, so it was not pinned to the dock."
+        fi
+    done
+
+    local current new
+    current="$(as_desktop_user gsettings get org.gnome.shell favorite-apps)"
+    new="$(python3 -c '
+import ast, sys
+cur = sys.argv[1].strip()
+if cur.startswith("@as"):
+    cur = cur[3:].strip()
+apps = ast.literal_eval(cur) if cur else []
+for a in sys.argv[2:]:
+    if a not in apps:
+        apps.append(a)
+print(str(apps))
+' "$current" "${want[@]}")"
+    as_desktop_user gsettings set org.gnome.shell favorite-apps "$new"
+    info "Dock for $DESKTOP_USER: $new"
+}
+
 print_summary() {
     log "Summary"
 
@@ -411,6 +508,7 @@ print_summary() {
 
     echo
     info "All done. A reboot is recommended:  sudo reboot"
+    info "(Log out and back in if the dock or terminal settings have not shown up.)"
     info "Sign in to GitHub (as yourself, not with sudo):  gh auth login"
     info "Then run a camera program from the camera folder, for example:"
     info "    python3 camera_simple.py"
@@ -437,5 +535,6 @@ run_step "Installing PyCharm"                         install_pycharm
 run_step "Installing Grafana"                         install_grafana
 run_step "Installing InfluxDB 3 Core"                 install_influxdb
 run_step "Installing NDI SDK (libndi + NDI tools)"    install_ndi
+run_step "Setting up the terminal and dock"           setup_desktop
 
 print_summary
