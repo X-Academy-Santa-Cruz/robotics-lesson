@@ -39,6 +39,11 @@ library the lessons use and builds **one shared virtual environment** at
 venv or `pip install` anything yourself. (On an x86 laptop, `setup_x86.sh` does
 the same for the laptop-side lessons.)
 
+For a full x86 topside computer, `sudo ./setup_x86_full.sh` also installs
+PyCharm, Chrome, the GitHub CLI (`gh`), Grafana, InfluxDB 3 and the NDI SDK
+(libndi). It does not build the `.venv` or install CadQuery, so run
+`setup_x86.sh` too if you need those.
+
 ### PyCharm
 
 The repo ships a ready-made PyCharm project (a small shared `.idea/` is
